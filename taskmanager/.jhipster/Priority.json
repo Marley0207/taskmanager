@@ -1,0 +1,21 @@
+{
+  "annotations": {
+    "changelogDate": "20250613021946"
+  },
+  "applications": "*",
+  "clientRootFolder": "taskmanager",
+  "databaseType": "sql",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "name",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "microserviceName": "taskmanager",
+  "name": "Priority",
+  "relationships": [],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

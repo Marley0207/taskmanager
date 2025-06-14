@@ -1,0 +1,4 @@
+org.springframework.test.context.ContextCustomizerFactory = \
+    com.dcmc.apps.taskmanager.config.\
+    SqlTestContainersSpringContextCustomizerFactory,com.dcmc.apps.taskmanager.\
+    config.RedisTestContainersSpringContextCustomizerFactory

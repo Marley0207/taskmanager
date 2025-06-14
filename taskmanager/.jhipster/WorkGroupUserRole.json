@@ -1,0 +1,38 @@
+{
+  "annotations": {
+    "changelogDate": "20250613021942"
+  },
+  "applications": "*",
+  "clientRootFolder": "taskmanager",
+  "databaseType": "sql",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "role",
+      "fieldType": "GroupRole",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "OWNER,MODERADOR,MIEMBRO"
+    }
+  ],
+  "microserviceName": "taskmanager",
+  "name": "WorkGroupUserRole",
+  "relationships": [
+    {
+      "otherEntityField": "login",
+      "otherEntityName": "user",
+      "relationshipName": "user",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one",
+      "relationshipWithBuiltInEntity": true
+    },
+    {
+      "otherEntityField": "name",
+      "otherEntityName": "workGroup",
+      "relationshipName": "group",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}
