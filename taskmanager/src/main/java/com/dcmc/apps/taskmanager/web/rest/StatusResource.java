@@ -50,12 +50,13 @@ public class StatusResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
-    public ResponseEntity<StatusDTO> createStatus(@Valid @RequestBody StatusDTO statusDTO) throws URISyntaxException {
+    public ResponseEntity<StatusDTO> createStatus(@Valid @RequestBody StatusDTO statusDTO, @RequestParam Long groupId
+    ) throws URISyntaxException {
         LOG.debug("REST request to save Status : {}", statusDTO);
         if (statusDTO.getId() != null) {
             throw new BadRequestAlertException("A new status cannot already have an ID", ENTITY_NAME, "idexists");
         }
-        statusDTO = statusService.save(statusDTO);
+        statusDTO = statusService.save(statusDTO, groupId);
         return ResponseEntity.created(new URI("/api/statuses/" + statusDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, false, ENTITY_NAME, statusDTO.getId().toString()))
             .body(statusDTO);
@@ -74,7 +75,8 @@ public class StatusResource {
     @PutMapping("/{id}")
     public ResponseEntity<StatusDTO> updateStatus(
         @PathVariable(value = "id", required = false) final Long id,
-        @Valid @RequestBody StatusDTO statusDTO
+        @Valid @RequestBody StatusDTO statusDTO,
+        @RequestParam Long groupId
     ) throws URISyntaxException {
         LOG.debug("REST request to update Status : {}, {}", id, statusDTO);
         if (statusDTO.getId() == null) {
@@ -83,12 +85,10 @@ public class StatusResource {
         if (!Objects.equals(id, statusDTO.getId())) {
             throw new BadRequestAlertException("Invalid ID", ENTITY_NAME, "idinvalid");
         }
-
         if (!statusRepository.existsById(id)) {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
-
-        statusDTO = statusService.update(statusDTO);
+        statusDTO = statusService.update(statusDTO, groupId);
         return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, false, ENTITY_NAME, statusDTO.getId().toString()))
             .body(statusDTO);
@@ -108,22 +108,20 @@ public class StatusResource {
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
     public ResponseEntity<StatusDTO> partialUpdateStatus(
         @PathVariable(value = "id", required = false) final Long id,
-        @NotNull @RequestBody StatusDTO statusDTO
+        @RequestBody StatusDTO statusDTO,
+        @RequestParam Long groupId
     ) throws URISyntaxException {
-        LOG.debug("REST request to partial update Status partially : {}, {}", id, statusDTO);
+        LOG.debug("REST request to partial update Status : {}, {}", id, statusDTO);
         if (statusDTO.getId() == null) {
             throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
         }
         if (!Objects.equals(id, statusDTO.getId())) {
             throw new BadRequestAlertException("Invalid ID", ENTITY_NAME, "idinvalid");
         }
-
         if (!statusRepository.existsById(id)) {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
-
-        Optional<StatusDTO> result = statusService.partialUpdate(statusDTO);
-
+        Optional<StatusDTO> result = statusService.partialUpdate(statusDTO, groupId);
         return ResponseUtil.wrapOrNotFound(
             result,
             HeaderUtil.createEntityUpdateAlert(applicationName, false, ENTITY_NAME, statusDTO.getId().toString())
@@ -161,9 +159,11 @@ public class StatusResource {
      * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteStatus(@PathVariable("id") Long id) {
-        LOG.debug("REST request to delete Status : {}", id);
-        statusService.delete(id);
+    public ResponseEntity<Void> deleteStatus(
+        @PathVariable("id") Long id,
+        @RequestParam Long groupId
+    ) {
+        statusService.delete(id, groupId);
         return ResponseEntity.noContent()
             .headers(HeaderUtil.createEntityDeletionAlert(applicationName, false, ENTITY_NAME, id.toString()))
             .build();

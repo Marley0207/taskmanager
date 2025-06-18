@@ -23,12 +23,15 @@ public class StatusService {
     private static final Logger LOG = LoggerFactory.getLogger(StatusService.class);
 
     private final StatusRepository statusRepository;
-
+    private final GroupSecurityService groupSecurityService;
     private final StatusMapper statusMapper;
 
-    public StatusService(StatusRepository statusRepository, StatusMapper statusMapper) {
+    public StatusService(StatusRepository statusRepository
+        , StatusMapper statusMapper
+        , GroupSecurityService groupSecurityService) {
         this.statusRepository = statusRepository;
         this.statusMapper = statusMapper;
+        this.groupSecurityService = groupSecurityService;
     }
 
     /**
@@ -37,7 +40,8 @@ public class StatusService {
      * @param statusDTO the entity to save.
      * @return the persisted entity.
      */
-    public StatusDTO save(StatusDTO statusDTO) {
+    public StatusDTO save(StatusDTO statusDTO, Long groupId) {
+        groupSecurityService.isModeratorOrOwner(groupId);
         LOG.debug("Request to save Status : {}", statusDTO);
         Status status = statusMapper.toEntity(statusDTO);
         status = statusRepository.save(status);
@@ -50,7 +54,8 @@ public class StatusService {
      * @param statusDTO the entity to save.
      * @return the persisted entity.
      */
-    public StatusDTO update(StatusDTO statusDTO) {
+    public StatusDTO update(StatusDTO statusDTO, Long groupId) {
+        groupSecurityService.isModeratorOrOwner(groupId);
         LOG.debug("Request to update Status : {}", statusDTO);
         Status status = statusMapper.toEntity(statusDTO);
         status = statusRepository.save(status);
@@ -63,7 +68,8 @@ public class StatusService {
      * @param statusDTO the entity to update partially.
      * @return the persisted entity.
      */
-    public Optional<StatusDTO> partialUpdate(StatusDTO statusDTO) {
+    public Optional<StatusDTO> partialUpdate(StatusDTO statusDTO, Long groupId) {
+        groupSecurityService.isModeratorOrOwner(groupId);
         LOG.debug("Request to partially update Status : {}", statusDTO);
 
         return statusRepository
@@ -105,7 +111,8 @@ public class StatusService {
      *
      * @param id the id of the entity.
      */
-    public void delete(Long id) {
+    public void delete(Long id, Long groupId) {
+        groupSecurityService.isModeratorOrOwner(groupId);
         LOG.debug("Request to delete Status : {}", id);
         statusRepository.deleteById(id);
     }

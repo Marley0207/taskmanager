@@ -27,4 +27,6 @@ public interface TaskRepository extends TaskRepositoryWithBagRelationships, JpaR
     default Page<Task> findAllWithEagerRelationships(Pageable pageable) {
         return this.fetchBagRelationships(this.findAll(pageable));
     }
+
+    List<Task> findByWorkGroup_IdAndArchivedTrue(Long groupId);
 }

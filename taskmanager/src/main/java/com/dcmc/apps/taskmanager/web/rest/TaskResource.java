@@ -18,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tech.jhipster.web.util.HeaderUtil;
@@ -177,12 +178,30 @@ public class TaskResource {
      * @param id the id of the taskDTO to delete.
      * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
      */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTask(@PathVariable("id") Long id) {
+
+    @PreAuthorize("@groupSecurityService.isModeratorOrOwner(#groupId)")
+    @DeleteMapping("/{groupId}/task/{id}")
+    public ResponseEntity<Void> deleteTask(
+        @PathVariable("groupId") Long groupId,
+        @PathVariable("id") Long id
+    ) {
         LOG.debug("REST request to delete Task : {}", id);
         taskService.delete(id);
         return ResponseEntity.noContent()
             .headers(HeaderUtil.createEntityDeletionAlert(applicationName, false, ENTITY_NAME, id.toString()))
             .build();
     }
+
+    @PostMapping("/{id}/archive")
+    public ResponseEntity<TaskDTO> archiveTask(@PathVariable Long id) {
+        TaskDTO result = taskService.archiveTask(id);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/archived/{groupId}")
+    public ResponseEntity<List<TaskDTO>> getArchivedTasks(@PathVariable Long groupId) {
+        List<TaskDTO> result = taskService.findArchivedTasksByGroup(groupId);
+        return ResponseEntity.ok().body(result);
+    }
+
 }

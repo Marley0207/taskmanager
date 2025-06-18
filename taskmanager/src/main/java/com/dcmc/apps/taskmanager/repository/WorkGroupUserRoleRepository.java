@@ -16,6 +16,7 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface WorkGroupUserRoleRepository extends JpaRepository<WorkGroupUserRole, Long> {
+
     @Query("select workGroupUserRole from WorkGroupUserRole workGroupUserRole where workGroupUserRole.user.login = ?#{authentication.name}")
     List<WorkGroupUserRole> findByUserIsCurrentUser();
 
@@ -50,7 +51,11 @@ public interface WorkGroupUserRoleRepository extends JpaRepository<WorkGroupUser
     @Query("select w from WorkGroupUserRole w where w.user.id = :userId and w.group.id = :groupId")
     Optional<WorkGroupUserRole> findByUserIdAndGroupId(@Param("userId") String userId, @Param("groupId") Long groupId);
 
-    // En WorkGroupUserRoleRepository.java
     @Query("select w from WorkGroupUserRole w where w.group.id = :groupId and w.role = :role")
     Optional<WorkGroupUserRole> findByGroupIdAndRole(@Param("groupId") Long groupId, @Param("role") GroupRole role);
+
+    Optional<WorkGroupUserRole> findByUser_LoginAndGroup_Id(String userLogin, Long groupId);
+
+    void deleteByUser_LoginAndGroup_Id(String userLogin, Long groupId);
+
 }

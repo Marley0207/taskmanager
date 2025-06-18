@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import tech.jhipster.web.util.HeaderUtil;
 import tech.jhipster.web.util.ResponseUtil;
@@ -22,6 +23,7 @@ import tech.jhipster.web.util.ResponseUtil;
 /**
  * REST controller for managing {@link com.dcmc.apps.taskmanager.domain.Priority}.
  */
+
 @RestController
 @RequestMapping("/api/priorities")
 public class PriorityResource {
@@ -49,6 +51,8 @@ public class PriorityResource {
      * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new priorityDTO, or with status {@code 400 (Bad Request)} if the priority has already an ID.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
+
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping("")
     public ResponseEntity<PriorityDTO> createPriority(@Valid @RequestBody PriorityDTO priorityDTO) throws URISyntaxException {
         LOG.debug("REST request to save Priority : {}", priorityDTO);
@@ -71,6 +75,8 @@ public class PriorityResource {
      * or with status {@code 500 (Internal Server Error)} if the priorityDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
+
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<PriorityDTO> updatePriority(
         @PathVariable(value = "id", required = false) final Long id,
@@ -105,6 +111,7 @@ public class PriorityResource {
      * or with status {@code 500 (Internal Server Error)} if the priorityDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
     public ResponseEntity<PriorityDTO> partialUpdatePriority(
         @PathVariable(value = "id", required = false) final Long id,
@@ -135,6 +142,7 @@ public class PriorityResource {
      *
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of priorities in body.
      */
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @GetMapping("")
     public List<PriorityDTO> getAllPriorities() {
         LOG.debug("REST request to get all Priorities");
@@ -147,6 +155,7 @@ public class PriorityResource {
      * @param id the id of the priorityDTO to retrieve.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the priorityDTO, or with status {@code 404 (Not Found)}.
      */
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<PriorityDTO> getPriority(@PathVariable("id") Long id) {
         LOG.debug("REST request to get Priority : {}", id);
@@ -160,6 +169,7 @@ public class PriorityResource {
      * @param id the id of the priorityDTO to delete.
      * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
      */
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePriority(@PathVariable("id") Long id) {
         LOG.debug("REST request to delete Priority : {}", id);

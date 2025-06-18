@@ -1,6 +1,8 @@
 package com.dcmc.apps.taskmanager.web.rest;
 
+import com.dcmc.apps.taskmanager.domain.enumeration.GroupRole;
 import com.dcmc.apps.taskmanager.repository.WorkGroupRepository;
+import com.dcmc.apps.taskmanager.service.GroupMembershipService;
 import com.dcmc.apps.taskmanager.service.WorkGroupService;
 import com.dcmc.apps.taskmanager.service.dto.WorkGroupDTO;
 import com.dcmc.apps.taskmanager.web.rest.errors.BadRequestAlertException;
@@ -42,9 +44,14 @@ public class WorkGroupResource {
 
     private final WorkGroupRepository workGroupRepository;
 
-    public WorkGroupResource(WorkGroupService workGroupService, WorkGroupRepository workGroupRepository) {
+    private final GroupMembershipService membershipService;
+
+    public WorkGroupResource(WorkGroupService workGroupService
+        , WorkGroupRepository workGroupRepository
+        , GroupMembershipService membershipService) {
         this.workGroupService = workGroupService;
         this.workGroupRepository = workGroupRepository;
+        this.membershipService = membershipService;
     }
 
     /**
@@ -184,5 +191,24 @@ public class WorkGroupResource {
         return ResponseEntity.noContent()
             .headers(HeaderUtil.createEntityDeletionAlert(applicationName, false, ENTITY_NAME, id.toString()))
             .build();
+    }
+
+    @PostMapping("/{groupId}/members")
+    public ResponseEntity<Void> addUserToGroup(
+        @PathVariable Long groupId,
+        @RequestParam String userLogin,
+        @RequestParam GroupRole role
+    ) {
+        membershipService.addUserToGroup(groupId, userLogin, role);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{groupId}/members/{userLogin}")
+    public ResponseEntity<Void> removeUserFromGroup(
+        @PathVariable Long groupId,
+        @PathVariable String userLogin
+    ) {
+        membershipService.removeUserFromGroup(groupId, userLogin);
+        return ResponseEntity.noContent().build();
     }
 }

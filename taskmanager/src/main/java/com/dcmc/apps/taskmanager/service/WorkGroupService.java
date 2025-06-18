@@ -3,8 +3,10 @@ package com.dcmc.apps.taskmanager.service;
 import com.dcmc.apps.taskmanager.domain.WorkGroup;
 import com.dcmc.apps.taskmanager.domain.WorkGroupUserRole;
 import com.dcmc.apps.taskmanager.domain.enumeration.GroupRole;
+import com.dcmc.apps.taskmanager.repository.UserRepository;
 import com.dcmc.apps.taskmanager.repository.WorkGroupRepository;
 import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
+import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.service.dto.WorkGroupDTO;
 import com.dcmc.apps.taskmanager.service.mapper.WorkGroupMapper;
 import java.util.Optional;
@@ -31,17 +33,20 @@ public class WorkGroupService {
     private final WorkGroupRepository workGroupRepository;
     private final WorkGroupMapper workGroupMapper;
     private final WorkGroupUserRoleRepository workGroupUserRoleRepository;
+    private final UserRepository userRepository;
 
     public WorkGroupService(
         WorkGroupRepository workGroupRepository,
         WorkGroupMapper workGroupMapper,
         GroupSecurityService groupSecurityService,
         WorkGroupUserRoleRepository workGroupUserRoleRepository
+        , UserRepository userRepository
     ) {
         this.workGroupRepository = workGroupRepository;
         this.workGroupMapper = workGroupMapper;
         this.groupSecurityService = groupSecurityService;
         this.workGroupUserRoleRepository = workGroupUserRoleRepository;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -54,6 +59,17 @@ public class WorkGroupService {
         LOG.debug("Request to save WorkGroup : {}", workGroupDTO);
         WorkGroup workGroup = workGroupMapper.toEntity(workGroupDTO);
         workGroup = workGroupRepository.save(workGroup);
+
+        // Obtener el login del usuario actual
+        String currentUserLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
+
+        // Crear la relación OWNER
+        WorkGroupUserRole ownerRole = new WorkGroupUserRole();
+        ownerRole.setGroup(workGroup);
+        ownerRole.setUser(userRepository.findOneByLogin(currentUserLogin).orElseThrow());
+        ownerRole.setRole(GroupRole.OWNER);
+        workGroupUserRoleRepository.save(ownerRole);
+
         return workGroupMapper.toDto(workGroup);
     }
 
@@ -134,7 +150,7 @@ public class WorkGroupService {
     }
 
     public void transferOwnership(Long groupId, Long newOwnerUserId) {
-        if (!groupSecurityService.isOwner(groupId.toString())) {
+        if (!groupSecurityService.isOwner(groupId)) {
             throw new AccessDeniedException("Solo el OWNER puede transferir el grupo.");
         }
 

@@ -58,7 +58,7 @@ spring:
     type: com.zaxxer.hikari.HikariDataSource
     url: jdbc:postgresql://localhost:5432/dcmc_taskmanager_db
     username: postgres
-    password: admin1
+    password: admin
     hikari:
       poolName: Hikari
       auto-commit: false
