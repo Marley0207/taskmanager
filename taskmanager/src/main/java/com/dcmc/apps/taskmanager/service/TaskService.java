@@ -4,6 +4,7 @@ import com.dcmc.apps.taskmanager.domain.Task;
 import com.dcmc.apps.taskmanager.domain.enumeration.GroupRole;
 import com.dcmc.apps.taskmanager.domain.enumeration.TaskStatus;
 import com.dcmc.apps.taskmanager.repository.TaskRepository;
+import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.service.dto.TaskDTO;
 import com.dcmc.apps.taskmanager.service.mapper.TaskMapper;
 
@@ -162,6 +163,13 @@ public class TaskService {
             .stream()
             .map(taskMapper::toDto)
             .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskDTO> findArchivedTasksForCurrentUser() {
+        String login = SecurityUtils.getCurrentUserLogin().orElseThrow();
+        List<Task> archivedTasks = taskRepository.findArchivedTasksByUserLogin(login);
+        return taskMapper.toDto(archivedTasks);
     }
 
 }

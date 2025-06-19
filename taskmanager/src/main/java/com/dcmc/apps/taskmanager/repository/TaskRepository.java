@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -29,4 +30,9 @@ public interface TaskRepository extends TaskRepositoryWithBagRelationships, JpaR
     }
 
     List<Task> findByWorkGroup_IdAndArchivedTrue(Long groupId);
+
+    @Query("SELECT t FROM Task t JOIN t.workGroup wg JOIN WorkGroupUserRole wgur ON wgur.group = wg " +
+        "WHERE t.archived = true AND wgur.user.login = :login")
+    List<Task> findArchivedTasksByUserLogin(@Param("login") String login);
+
 }

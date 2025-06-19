@@ -204,4 +204,10 @@ public class TaskResource {
         return ResponseEntity.ok().body(result);
     }
 
+    @GetMapping("/tasks/archived")
+    public ResponseEntity<List<TaskDTO>> getArchivedTasks() {
+        List<TaskDTO> tasks = taskService.findArchivedTasksForCurrentUser();
+        return ResponseEntity.ok(tasks);
+    }
+
 }

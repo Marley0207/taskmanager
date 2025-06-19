@@ -1,5 +1,6 @@
 package com.dcmc.apps.taskmanager.service;
 
+import com.dcmc.apps.taskmanager.domain.WorkGroupUserRole;
 import com.dcmc.apps.taskmanager.domain.enumeration.GroupRole;
 import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
@@ -18,13 +19,14 @@ public class GroupSecurityService {
     public GroupRole getUserRoleInGroup(Long groupId) {
         String login = SecurityUtils.getCurrentUserLogin().orElse(null);
         if (login == null) {
-            return null;
+            throw new AccessDeniedException("Usuario no autenticado.");
         }
         return workGroupUserRoleRepository
-            .findByUserIdAndGroupId(login,(groupId))
-            .map(wgur -> wgur.getRole())
-            .orElse(null);
+            .findByUser_LoginAndGroup_Id(login, groupId)
+            .map(WorkGroupUserRole::getRole)
+            .orElseThrow(() -> new AccessDeniedException("El usuario no tiene rol en este grupo."));
     }
+
     public boolean isOwner(Long groupId) {
         return getUserRoleInGroup(groupId) == GroupRole.OWNER;
     }

@@ -149,25 +149,4 @@ public class WorkGroupService {
         workGroupRepository.deleteById(id);
     }
 
-    public void transferOwnership(Long groupId, Long newOwnerUserId) {
-        if (!groupSecurityService.isOwner(groupId)) {
-            throw new AccessDeniedException("Solo el OWNER puede transferir el grupo.");
-        }
-
-        // Buscar el nuevo miembro y cambiar su rol
-        WorkGroupUserRole newOwner = workGroupUserRoleRepository
-            .findByUserIdAndGroupId(String.valueOf(newOwnerUserId), groupId)
-            .orElseThrow(() -> new BadRequestAlertException("El nuevo propietario debe ser miembro del grupo", "Group", "usernotingroup"));
-
-        // Quitar el OWNER actual
-        WorkGroupUserRole currentOwner = workGroupUserRoleRepository
-            .findByGroupIdAndRole(groupId, GroupRole.OWNER)
-            .orElseThrow();
-
-        currentOwner.setRole(GroupRole.MIEMBRO);
-        newOwner.setRole(GroupRole.OWNER);
-
-        workGroupUserRoleRepository.save(currentOwner);
-        workGroupUserRoleRepository.save(newOwner);
-    }
 }

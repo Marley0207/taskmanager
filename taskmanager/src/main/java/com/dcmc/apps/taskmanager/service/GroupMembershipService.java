@@ -8,6 +8,7 @@ import com.dcmc.apps.taskmanager.repository.UserRepository;
 import com.dcmc.apps.taskmanager.repository.WorkGroupRepository;
 import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
+import com.dcmc.apps.taskmanager.web.rest.errors.BadRequestAlertException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -78,4 +79,44 @@ public class GroupMembershipService {
             throw new AccessDeniedException("Solo MODERADOR u OWNER puede agregar miembros.");
         }
     }
+    public void leaveGroup(Long groupId) {
+        String currentLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
+        GroupRole currentRole = groupSecurityService.getUserRoleInGroup(groupId);
+
+        if (currentRole == null) {
+            throw new BadRequestAlertException("No perteneces a este grupo", "WorkGroup", "notmember");
+        }
+
+        if (currentRole == GroupRole.OWNER) {
+            throw new AccessDeniedException("El OWNER no puede abandonar el grupo. Debe transferir la propiedad primero.");
+        }
+
+        membershipRepository.deleteByUser_LoginAndGroup_Id(currentLogin, groupId);
+    }
+
+    public void transferOwnership(Long groupId, String newOwnerLogin) {
+        String currentLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
+
+        // Verificar que el actual sea OWNER
+        if (!groupSecurityService.isOwner(groupId)) {
+            throw new AccessDeniedException("Solo el OWNER puede transferir la propiedad.");
+        }
+
+        // Verificar que el nuevo owner es miembro del grupo
+        WorkGroupUserRole newOwnerRole = membershipRepository
+            .findByUser_LoginAndGroup_Id(newOwnerLogin, groupId)
+            .orElseThrow(() -> new BadRequestAlertException("El usuario no pertenece al grupo", "WorkGroup", "notmember"));
+
+        // Actual OWNER pasa a MODERADOR
+        WorkGroupUserRole currentOwnerRole = membershipRepository
+            .findByUser_LoginAndGroup_Id(currentLogin, groupId)
+            .orElseThrow(() -> new IllegalStateException("No se encontró al OWNER actual"));
+
+        currentOwnerRole.setRole(GroupRole.MODERADOR);
+        newOwnerRole.setRole(GroupRole.OWNER);
+
+        membershipRepository.save(currentOwnerRole);
+        membershipRepository.save(newOwnerRole);
+    }
+
 }

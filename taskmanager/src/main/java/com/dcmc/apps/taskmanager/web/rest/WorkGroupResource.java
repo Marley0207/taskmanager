@@ -211,4 +211,20 @@ public class WorkGroupResource {
         membershipService.removeUserFromGroup(groupId, userLogin);
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping("/{groupId}/leave")
+    public ResponseEntity<Void> leaveGroup(@PathVariable Long groupId) {
+        membershipService.leaveGroup(groupId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{groupId}/transfer-ownership")
+    public ResponseEntity<Void> transferOwnership(
+        @PathVariable Long groupId,
+        @RequestParam String newOwnerLogin
+    ) {
+        membershipService.transferOwnership(groupId, newOwnerLogin);
+        return ResponseEntity.ok().build();
+    }
+
 }
