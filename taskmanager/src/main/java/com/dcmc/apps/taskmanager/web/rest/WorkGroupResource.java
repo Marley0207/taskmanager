@@ -20,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tech.jhipster.web.util.HeaderUtil;
@@ -62,6 +63,7 @@ public class WorkGroupResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
+    @PreAuthorize("hasAuthority('ROLE_USER')")
     public ResponseEntity<WorkGroupDTO> createWorkGroup(@Valid @RequestBody WorkGroupDTO workGroupDTO) throws URISyntaxException {
         LOG.debug("REST request to save WorkGroup : {}", workGroupDTO);
         if (workGroupDTO.getId() != null) {
@@ -215,6 +217,16 @@ public class WorkGroupResource {
     @DeleteMapping("/{groupId}/leave")
     public ResponseEntity<Void> leaveGroup(@PathVariable Long groupId) {
         membershipService.leaveGroup(groupId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/work-groups/{groupId}/promote/{userLogin}")
+    @PreAuthorize("@groupSecurityService.isModeratorOrOwner(#groupId)")
+    public ResponseEntity<Void> promoteUserToModerator(
+        @PathVariable Long groupId,
+        @PathVariable String userLogin
+    ) {
+        membershipService.promoteUserToModerator(groupId, userLogin);
         return ResponseEntity.noContent().build();
     }
 

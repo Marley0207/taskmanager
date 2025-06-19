@@ -2,6 +2,7 @@ package com.dcmc.apps.taskmanager.service;
 
 import com.dcmc.apps.taskmanager.domain.Comment;
 import com.dcmc.apps.taskmanager.repository.CommentRepository;
+import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.service.dto.CommentDTO;
 import com.dcmc.apps.taskmanager.service.mapper.CommentMapper;
 import java.util.LinkedList;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,12 +27,15 @@ public class CommentService {
     private static final Logger LOG = LoggerFactory.getLogger(CommentService.class);
 
     private final CommentRepository commentRepository;
-
+    private final GroupSecurityService groupSecurityService;
     private final CommentMapper commentMapper;
 
-    public CommentService(CommentRepository commentRepository, CommentMapper commentMapper) {
+    public CommentService(CommentRepository commentRepository
+        , CommentMapper commentMapper,
+        GroupSecurityService groupSecurityService) {
         this.commentRepository = commentRepository;
         this.commentMapper = commentMapper;
+        this.groupSecurityService = groupSecurityService;
     }
 
     /**
@@ -41,6 +46,20 @@ public class CommentService {
      */
     public CommentDTO save(CommentDTO commentDTO) {
         LOG.debug("Request to save Comment : {}", commentDTO);
+
+        // Obtener el usuario actual
+        String currentUserLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
+
+        // Obtener el grupo asociado al comentario (vía la tarea)
+        Long taskId = commentDTO.getTask().getId();
+        Long groupId = commentRepository.findGroupIdByTaskId(taskId)
+            .orElseThrow(() -> new IllegalArgumentException("No se encontró el grupo para la tarea"));
+
+        // Verificar membresía
+        if (groupSecurityService.getUserRoleOf(currentUserLogin, groupId) == null) {
+            throw new AccessDeniedException("Solo los miembros del grupo pueden comentar.");
+        }
+
         Comment comment = commentMapper.toEntity(commentDTO);
         comment = commentRepository.save(comment);
         return commentMapper.toDto(comment);

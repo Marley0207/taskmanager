@@ -9,6 +9,7 @@ import com.dcmc.apps.taskmanager.repository.WorkGroupRepository;
 import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.web.rest.errors.BadRequestAlertException;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,20 +56,37 @@ public class GroupMembershipService {
         }
     }
 
-    public void removeUserFromGroup(Long groupId, String userLogin) {
-        GroupRole targetRole = groupSecurityService.getUserRoleInGroup(groupId);
+    public void removeUserFromGroup(Long groupId, String targetUserLogin) {
+        // Quién hace la petición (el que intenta eliminar)
+        String currentUserLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
 
-        // Reglas: solo OWNER puede quitar moderadores u otros
-        if (!groupSecurityService.isOwner(groupId)) {
-            throw new AccessDeniedException("No tienes permisos para quitar miembros.");
+        GroupRole actorRole = groupSecurityService.getUserRoleInGroup(groupId); // rol del que llama
+        GroupRole targetRole = groupSecurityService.getUserRoleOf(targetUserLogin, groupId); // rol del que será eliminado
+
+        if (actorRole == null) {
+            throw new AccessDeniedException("No perteneces al grupo.");
         }
 
-        if (targetRole == GroupRole.MODERADOR && !groupSecurityService.isOwner(groupId)) {
-            throw new AccessDeniedException("Solo el OWNER puede quitar moderadores.");
+        if (targetRole == null) {
+            throw new BadRequestAlertException("El usuario a eliminar no pertenece al grupo", "WorkGroup", "notingroup");
         }
 
-        membershipRepository.deleteByUser_LoginAndGroup_Id(userLogin, groupId);
+        // Un moderador no puede eliminar a moderadores ni al OWNER
+        if (actorRole == GroupRole.MODERADOR) {
+            if (targetRole == GroupRole.MODERADOR || targetRole == GroupRole.OWNER) {
+                throw new AccessDeniedException("Un MODERADOR no puede eliminar a otros MODERADORES ni al OWNER.");
+            }
+        }
+
+        // El OWNER no puede eliminarse a sí mismo (usa leaveGroup para eso)
+        if (targetUserLogin.equals(currentUserLogin) && actorRole == GroupRole.OWNER) {
+            throw new BadRequestAlertException("No puedes eliminarte a ti mismo siendo OWNER. Usa la función de transferir propiedad o salir del grupo.", "WorkGroup", "owner-self-delete");
+        }
+
+        // Todo bien, eliminar
+        membershipRepository.deleteByUser_LoginAndGroup_Id(targetUserLogin, groupId);
     }
+
 
     private void checkPermissionToAssignRole(Long groupId, GroupRole role) {
         if (role == GroupRole.MODERADOR && !groupSecurityService.isModeratorOrOwner(groupId)) {
@@ -118,5 +136,27 @@ public class GroupMembershipService {
         membershipRepository.save(currentOwnerRole);
         membershipRepository.save(newOwnerRole);
     }
+
+    @Transactional
+    public void promoteUserToModerator(Long groupId, String userLogin) {
+        // Validar que quien realiza la acción sea OWNER del grupo
+        if (!groupSecurityService.isOwner(groupId)) {
+            throw new AccessDeniedException("Solo el OWNER puede promover a moderadores.");
+        }
+
+        // Verificar si el usuario es miembro del grupo
+        WorkGroupUserRole membership = membershipRepository
+            .findByUser_LoginAndGroup_Id(userLogin, groupId)
+            .orElseThrow(() -> new EntityNotFoundException("El usuario no pertenece al grupo."));
+
+        // Validar que actualmente es MIEMBRO
+        if (membership.getRole() != GroupRole.MIEMBRO) {
+            throw new BadRequestAlertException("Solo se puede promover a miembros (MIEMBRO) a MODERADOR", "WorkGroup", "invalidrole");
+        }
+
+        membership.setRole(GroupRole.MODERADOR);
+        membershipRepository.save(membership);
+    }
+
 
 }

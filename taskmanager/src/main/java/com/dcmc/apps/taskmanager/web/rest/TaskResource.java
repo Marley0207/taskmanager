@@ -178,8 +178,6 @@ public class TaskResource {
      * @param id the id of the taskDTO to delete.
      * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
      */
-
-    @PreAuthorize("@groupSecurityService.isModeratorOrOwner(#groupId)")
     @DeleteMapping("/{groupId}/task/{id}")
     public ResponseEntity<Void> deleteTask(
         @PathVariable("groupId") Long groupId,
@@ -198,16 +196,34 @@ public class TaskResource {
         return ResponseEntity.ok(result);
     }
 
+    @GetMapping("/tasks/archived")
+    public ResponseEntity<List<TaskDTO>> getArchivedTasks() {
+        List<TaskDTO> tasks = taskService.findArchivedTasksForCurrentUser();
+        return ResponseEntity.ok(tasks);
+    }
+
     @GetMapping("/archived/{groupId}")
     public ResponseEntity<List<TaskDTO>> getArchivedTasks(@PathVariable Long groupId) {
         List<TaskDTO> result = taskService.findArchivedTasksByGroup(groupId);
         return ResponseEntity.ok().body(result);
     }
 
-    @GetMapping("/tasks/archived")
-    public ResponseEntity<List<TaskDTO>> getArchivedTasks() {
-        List<TaskDTO> tasks = taskService.findArchivedTasksForCurrentUser();
-        return ResponseEntity.ok(tasks);
+    @DeleteMapping("/tasks/{taskId}/archived")
+    @PreAuthorize("@groupSecurityService.isModeratorOrOwner(#groupId)")
+    public ResponseEntity<Void> deleteArchivedTask(@PathVariable Long taskId) {
+        taskService.deleteArchivedTask(taskId);
+        return ResponseEntity.noContent().build();
+    }
+
+
+    @PutMapping("/tasks/{taskId}/assign-user/{userLogin}")
+    @PreAuthorize("@groupSecurityService.isModeratorOrOwner(#groupId)")     //ajustado a OWNER/MODERADOR
+    public ResponseEntity<TaskDTO> assignUserToTask(
+        @PathVariable Long taskId,
+        @PathVariable String userLogin
+    ) {
+        TaskDTO result = taskService.assignUserToTask(taskId, userLogin);
+        return ResponseEntity.ok().body(result);
     }
 
 }

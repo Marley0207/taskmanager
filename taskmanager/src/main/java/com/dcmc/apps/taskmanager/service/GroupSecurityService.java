@@ -47,4 +47,11 @@ public class GroupSecurityService {
             throw new AccessDeniedException("Acceso restringido a moderadores o propietarios del grupo.");
         }
     }
+
+    public GroupRole getUserRoleOf(String userLogin, Long groupId) {
+        return workGroupUserRoleRepository
+            .findByUser_LoginAndGroup_Id(userLogin, groupId)
+            .map(WorkGroupUserRole::getRole)
+            .orElse(null);
+    }
 }

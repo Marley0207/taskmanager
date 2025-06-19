@@ -1,9 +1,12 @@
 package com.dcmc.apps.taskmanager.service;
 
 import com.dcmc.apps.taskmanager.domain.Task;
+import com.dcmc.apps.taskmanager.domain.User;
 import com.dcmc.apps.taskmanager.domain.enumeration.GroupRole;
 import com.dcmc.apps.taskmanager.domain.enumeration.TaskStatus;
 import com.dcmc.apps.taskmanager.repository.TaskRepository;
+import com.dcmc.apps.taskmanager.repository.UserRepository;
+import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.service.dto.TaskDTO;
 import com.dcmc.apps.taskmanager.service.mapper.TaskMapper;
@@ -13,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.dcmc.apps.taskmanager.web.rest.errors.BadRequestAlertException;
+import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -31,17 +35,21 @@ public class TaskService {
     private static final Logger LOG = LoggerFactory.getLogger(TaskService.class);
 
     private final TaskRepository taskRepository;
-
+    private final UserRepository userRepository;
     private final TaskMapper taskMapper;
-
     private final GroupSecurityService  groupSecurityService;
+    private final WorkGroupUserRoleRepository workGroupUserRoleRepository;
 
     public TaskService(TaskRepository taskRepository
         , TaskMapper taskMapper
-        , GroupSecurityService groupSecurityService) {
+        , GroupSecurityService groupSecurityService
+        ,UserRepository userRepository
+        , WorkGroupUserRoleRepository workGroupUserRoleRepository) {
         this.taskRepository = taskRepository;
         this.taskMapper = taskMapper;
         this.groupSecurityService = groupSecurityService;
+        this.userRepository = userRepository;
+        this.workGroupUserRoleRepository = workGroupUserRoleRepository;
     }
 
     /**
@@ -71,6 +79,13 @@ public class TaskService {
      * @return the persisted entity.
      */
     public TaskDTO update(TaskDTO taskDTO) {
+        Task existingTask = taskRepository.findById(taskDTO.getId())
+            .orElseThrow(() -> new EntityNotFoundException("Tarea no encontrada"));
+
+        if (existingTask.getArchived()) {
+            throw new BadRequestAlertException("No se puede editar una tarea archivada", "Task", "archived");
+        }
+
         LOG.debug("Request to update Task : {}", taskDTO);
         Task task = taskMapper.toEntity(taskDTO);
         task = taskRepository.save(task);
@@ -89,8 +104,10 @@ public class TaskService {
         return taskRepository
             .findById(taskDTO.getId())
             .map(existingTask -> {
+                if (existingTask.getArchived()) {
+                    throw new BadRequestAlertException("No se puede editar una tarea archivada", "Task", "archived");
+                }
                 taskMapper.partialUpdate(existingTask, taskDTO);
-
                 return existingTask;
             })
             .map(taskRepository::save)
@@ -165,11 +182,59 @@ public class TaskService {
             .toList();
     }
 
+    @Transactional
+    public void deleteArchivedTask(Long taskId) {
+        Task task = taskRepository.findById(taskId)
+            .orElseThrow(() -> new EntityNotFoundException("Tarea no encontrada"));
+
+        if (!task.getArchived()) {
+            throw new BadRequestAlertException("Solo se pueden eliminar tareas archivadas", "Task", "notarchived");
+        }
+
+        // Validar que el usuario actual sea OWNER o MODERADOR del grupo de la tarea
+        Long groupId = task.getWorkGroup().getId();
+        if (!groupSecurityService.isModeratorOrOwner(groupId)) {
+            throw new AccessDeniedException("Solo OWNER o MODERADOR puede eliminar tareas archivadas.");
+        }
+
+        taskRepository.delete(task);
+    }
+
+
     @Transactional(readOnly = true)
     public List<TaskDTO> findArchivedTasksForCurrentUser() {
         String login = SecurityUtils.getCurrentUserLogin().orElseThrow();
         List<Task> archivedTasks = taskRepository.findArchivedTasksByUserLogin(login);
         return taskMapper.toDto(archivedTasks);
     }
+
+    @Transactional
+    public TaskDTO assignUserToTask(Long taskId, String userLogin) {
+        Task task = taskRepository.findById(taskId)
+            .orElseThrow(() -> new EntityNotFoundException("Tarea no encontrada"));
+
+        if (task.getArchived()) {
+            throw new BadRequestAlertException("No se puede modificar una tarea archivada", "Task", "archived");
+        }
+
+        if (task.getStatus() == TaskStatus.DONE) {
+            throw new BadRequestAlertException("No se puede asignar usuarios a una tarea completada (DONE)", "Task", "invalidstatus");
+        }
+
+        // Verificar que el usuario está en el grupo de trabajo de la tarea
+        boolean isMember = workGroupUserRoleRepository.existsByUser_LoginAndGroup_Id(userLogin, task.getWorkGroup().getId());
+        if (!isMember) {
+            throw new BadRequestAlertException("El usuario no pertenece al grupo de trabajo", "Task", "notingroup");
+        }
+
+        // Buscar usuario y agregarlo a la lista de asignados
+        User user = userRepository.findOneByLogin(userLogin).orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
+        task.getAssignedTos().add(user);
+        task.setUpdateTime(Instant.now());
+
+        return taskMapper.toDto(taskRepository.save(task));
+    }
+
+
 
 }

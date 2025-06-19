@@ -70,6 +70,7 @@ relationship ManyToOne {
   WorkGroupUserRole{user(login)} to User with builtInEntity,
   WorkGroupUserRole{group(name)} to WorkGroup
   Comment{author(login)} to User with builtInEntity
+  Comment{task(title)} to Task
 }
 
 dto * with mapstruct
