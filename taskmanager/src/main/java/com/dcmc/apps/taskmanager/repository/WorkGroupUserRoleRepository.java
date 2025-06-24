@@ -59,4 +59,7 @@ public interface WorkGroupUserRoleRepository extends JpaRepository<WorkGroupUser
     void deleteByUser_LoginAndGroup_Id(String userLogin, Long groupId);
 
     boolean existsByUser_LoginAndGroup_Id(String userLogin, Long groupId);
+
+    List<WorkGroupUserRole> findAllByGroup_Id(Long groupId);
+
 }

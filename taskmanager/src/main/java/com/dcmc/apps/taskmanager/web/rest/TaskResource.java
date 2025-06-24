@@ -3,6 +3,7 @@ package com.dcmc.apps.taskmanager.web.rest;
 import com.dcmc.apps.taskmanager.repository.TaskRepository;
 import com.dcmc.apps.taskmanager.service.TaskService;
 import com.dcmc.apps.taskmanager.service.dto.TaskDTO;
+import com.dcmc.apps.taskmanager.service.dto.UserDTO;
 import com.dcmc.apps.taskmanager.web.rest.errors.BadRequestAlertException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -113,28 +114,26 @@ public class TaskResource {
      */
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
     public ResponseEntity<TaskDTO> partialUpdateTask(
-        @PathVariable(value = "id", required = false) final Long id,
+        @PathVariable(value = "id") final Long id,
         @NotNull @RequestBody TaskDTO taskDTO
     ) throws URISyntaxException {
         LOG.debug("REST request to partial update Task partially : {}, {}", id, taskDTO);
-        if (taskDTO.getId() == null) {
-            throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
-        }
-        if (!Objects.equals(id, taskDTO.getId())) {
-            throw new BadRequestAlertException("Invalid ID", ENTITY_NAME, "idinvalid");
-        }
 
         if (!taskRepository.existsById(id)) {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
 
+        // Asigna el ID manualmente desde la URL al DTO
+        taskDTO.setId(id);
+
         Optional<TaskDTO> result = taskService.partialUpdate(taskDTO);
 
         return ResponseUtil.wrapOrNotFound(
             result,
-            HeaderUtil.createEntityUpdateAlert(applicationName, false, ENTITY_NAME, taskDTO.getId().toString())
+            HeaderUtil.createEntityUpdateAlert(applicationName, false, ENTITY_NAME, id.toString())
         );
     }
+
 
     /**
      * {@code GET  /tasks} : get all the tasks.
@@ -190,13 +189,19 @@ public class TaskResource {
             .build();
     }
 
+    @GetMapping("/{id}/view-assigned-users")
+    public ResponseEntity<List<UserDTO>> getAssignedUsers(@PathVariable Long id) {
+        List<UserDTO> users = taskService.getAssignedUsers(id);
+        return ResponseEntity.ok(users);
+    }
+
     @PostMapping("/{id}/archive")
     public ResponseEntity<TaskDTO> archiveTask(@PathVariable Long id) {
         TaskDTO result = taskService.archiveTask(id);
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/tasks/archived")
+    @GetMapping("/archived")
     public ResponseEntity<List<TaskDTO>> getArchivedTasks() {
         List<TaskDTO> tasks = taskService.findArchivedTasksForCurrentUser();
         return ResponseEntity.ok(tasks);
@@ -208,7 +213,7 @@ public class TaskResource {
         return ResponseEntity.ok().body(result);
     }
 
-    @DeleteMapping("/tasks/{taskId}/archived")
+    @DeleteMapping("/{taskId}/archived")
     @PreAuthorize("@groupSecurityService.isModeratorOrOwner(#groupId)")
     public ResponseEntity<Void> deleteArchivedTask(@PathVariable Long taskId) {
         taskService.deleteArchivedTask(taskId);
@@ -216,8 +221,7 @@ public class TaskResource {
     }
 
 
-    @PutMapping("/tasks/{taskId}/assign-user/{userLogin}")
-    @PreAuthorize("@groupSecurityService.isModeratorOrOwner(#groupId)")     //ajustado a OWNER/MODERADOR
+    @PutMapping("{taskId}/assign-user/{userLogin}")    //ajustado a OWNER/MODERADOR
     public ResponseEntity<TaskDTO> assignUserToTask(
         @PathVariable Long taskId,
         @PathVariable String userLogin
@@ -225,5 +229,4 @@ public class TaskResource {
         TaskDTO result = taskService.assignUserToTask(taskId, userLogin);
         return ResponseEntity.ok().body(result);
     }
-
 }

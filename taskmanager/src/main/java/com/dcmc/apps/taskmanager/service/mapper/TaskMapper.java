@@ -2,47 +2,37 @@ package com.dcmc.apps.taskmanager.service.mapper;
 
 import com.dcmc.apps.taskmanager.domain.Project;
 import com.dcmc.apps.taskmanager.domain.Task;
-import com.dcmc.apps.taskmanager.domain.User;
 import com.dcmc.apps.taskmanager.domain.WorkGroup;
-import com.dcmc.apps.taskmanager.service.dto.ProjectDTO;
 import com.dcmc.apps.taskmanager.service.dto.TaskDTO;
-import com.dcmc.apps.taskmanager.service.dto.UserDTO;
-import com.dcmc.apps.taskmanager.service.dto.WorkGroupDTO;
-import java.util.Set;
-import java.util.stream.Collectors;
 import org.mapstruct.*;
 
-/**
- * Mapper for the entity {@link Task} and its DTO {@link TaskDTO}.
- */
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = UserMapper.class)
 public interface TaskMapper extends EntityMapper<TaskDTO, Task> {
-    @Mapping(target = "assignedTos", source = "assignedTos", qualifiedByName = "userLoginSet")
-    @Mapping(target = "workGroup", source = "workGroup", qualifiedByName = "workGroupId")
-    @Mapping(target = "project", source = "project", qualifiedByName = "projectId")
-    TaskDTO toDto(Task s);
 
-    @Mapping(target = "removeAssignedTo", ignore = true)
+    @Mapping(target = "workGroup", source = "workGroupId")
+    @Mapping(target = "project", source = "projectId")
+    @Mapping(target = "assignedTos", ignore = true) // sigue ignorando si se maneja en el servicio
     Task toEntity(TaskDTO taskDTO);
 
-    @Named("userLogin")
-    @BeanMapping(ignoreByDefault = true)
-    @Mapping(target = "id", source = "id")
-    @Mapping(target = "login", source = "login")
-    UserDTO toDtoUserLogin(User user);
+    @Mapping(source = "workGroup.id", target = "workGroupId")
+    @Mapping(source = "project.id", target = "projectId")
+    @Mapping(source = "assignedTos", target = "assignedTos")
+    TaskDTO toDto(Task task);
 
-    @Named("userLoginSet")
-    default Set<UserDTO> toDtoUserLoginSet(Set<User> user) {
-        return user.stream().map(this::toDtoUserLogin).collect(Collectors.toSet());
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    void partialUpdate(@MappingTarget Task entity, TaskDTO dto);
+
+    default WorkGroup fromId(Long id) {
+        if (id == null) return null;
+        WorkGroup group = new WorkGroup();
+        group.setId(id);
+        return group;
     }
 
-    @Named("workGroupId")
-    @BeanMapping(ignoreByDefault = true)
-    @Mapping(target = "id", source = "id")
-    WorkGroupDTO toDtoWorkGroupId(WorkGroup workGroup);
-
-    @Named("projectId")
-    @BeanMapping(ignoreByDefault = true)
-    @Mapping(target = "id", source = "id")
-    ProjectDTO toDtoProjectId(Project project);
+    default Project fromIdProject(Long id) {
+        if (id == null) return null;
+        Project project = new Project();
+        project.setId(id);
+        return project;
+    }
 }

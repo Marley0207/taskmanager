@@ -9,12 +9,15 @@ import com.dcmc.apps.taskmanager.repository.UserRepository;
 import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.service.dto.TaskDTO;
+import com.dcmc.apps.taskmanager.service.dto.UserDTO;
 import com.dcmc.apps.taskmanager.service.mapper.TaskMapper;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
+import com.dcmc.apps.taskmanager.service.mapper.UserMapper;
 import com.dcmc.apps.taskmanager.web.rest.errors.BadRequestAlertException;
 import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
@@ -37,6 +40,7 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final TaskMapper taskMapper;
+    private final UserMapper userMapper;
     private final GroupSecurityService  groupSecurityService;
     private final WorkGroupUserRoleRepository workGroupUserRoleRepository;
 
@@ -44,12 +48,14 @@ public class TaskService {
         , TaskMapper taskMapper
         , GroupSecurityService groupSecurityService
         ,UserRepository userRepository
-        , WorkGroupUserRoleRepository workGroupUserRoleRepository) {
+        , WorkGroupUserRoleRepository workGroupUserRoleRepository
+        , UserMapper userMapper) {
         this.taskRepository = taskRepository;
         this.taskMapper = taskMapper;
         this.groupSecurityService = groupSecurityService;
         this.userRepository = userRepository;
         this.workGroupUserRoleRepository = workGroupUserRoleRepository;
+        this.userMapper = userMapper;
     }
 
     /**
@@ -60,14 +66,26 @@ public class TaskService {
      */
     public TaskDTO save(TaskDTO taskDTO) {
         LOG.debug("Request to save Task : {}", taskDTO);
-        Long groupId = taskDTO.getWorkGroup().getId();
+        Long groupId = taskDTO.getWorkGroupId();
 
-        GroupRole role = groupSecurityService.getUserRoleInGroup((groupId));
+        GroupRole role = groupSecurityService.getUserRoleInGroup(groupId);
         if (role == null) {
             throw new AccessDeniedException("No puedes crear tareas en este grupo.");
         }
 
+        // Obtener el usuario actual
+        String currentUserLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
+        User currentUser = userRepository.findOneByLogin(currentUserLogin)
+            .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
         Task task = taskMapper.toEntity(taskDTO);
+        task.setCreateTime(Instant.now());
+        task.setUpdateTime(Instant.now());
+        task.setArchived(false);
+
+        // Asignar al usuario creador
+        task.getAssignedTos().add(currentUser);
+
         task = taskRepository.save(task);
         return taskMapper.toDto(task);
     }
@@ -99,14 +117,12 @@ public class TaskService {
      * @return the persisted entity.
      */
     public Optional<TaskDTO> partialUpdate(TaskDTO taskDTO) {
-        LOG.debug("Request to partially update Task : {}", taskDTO);
-
-        return taskRepository
-            .findById(taskDTO.getId())
+        return taskRepository.findById(taskDTO.getId())
             .map(existingTask -> {
                 if (existingTask.getArchived()) {
                     throw new BadRequestAlertException("No se puede editar una tarea archivada", "Task", "archived");
                 }
+                // Actualiza solo los campos no nulos del DTO sobre la entidad existente
                 taskMapper.partialUpdate(existingTask, taskDTO);
                 return existingTask;
             })
@@ -236,5 +252,25 @@ public class TaskService {
     }
 
 
+    @Transactional(readOnly = true)
+    public List<UserDTO> getAssignedUsers(Long taskId) {
+        Task task = taskRepository.findById(taskId)
+            .orElseThrow(() -> new EntityNotFoundException("Tarea no encontrada"));
+
+        Long groupId = task.getWorkGroup().getId();
+
+        String currentUserLogin = SecurityUtils.getCurrentUserLogin()
+            .orElseThrow(() -> new AccessDeniedException("Usuario no autenticado"));
+
+        boolean belongsToGroup = workGroupUserRoleRepository.existsByUser_LoginAndGroup_Id(currentUserLogin, groupId);
+        if (!belongsToGroup) {
+            throw new AccessDeniedException("No tienes acceso a los usuarios asignados de esta tarea.");
+        }
+
+        // Mapear a UserDTO simple
+        return task.getAssignedTos().stream()
+            .map(userMapper::toDtoLogin)
+            .collect(Collectors.toList());
+    }
 
 }

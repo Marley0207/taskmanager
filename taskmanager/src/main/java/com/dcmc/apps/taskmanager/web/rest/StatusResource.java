@@ -32,9 +32,7 @@ public class StatusResource {
 
     @Value("${jhipster.clientApp.name}")
     private String applicationName;
-
     private final StatusService statusService;
-
     private final StatusRepository statusRepository;
 
     public StatusResource(StatusService statusService, StatusRepository statusRepository) {

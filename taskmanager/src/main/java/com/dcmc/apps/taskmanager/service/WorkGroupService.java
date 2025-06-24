@@ -7,9 +7,14 @@ import com.dcmc.apps.taskmanager.repository.UserRepository;
 import com.dcmc.apps.taskmanager.repository.WorkGroupRepository;
 import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
+import com.dcmc.apps.taskmanager.service.dto.UserDTO;
 import com.dcmc.apps.taskmanager.service.dto.WorkGroupDTO;
+import com.dcmc.apps.taskmanager.service.mapper.UserMapper;
 import com.dcmc.apps.taskmanager.service.mapper.WorkGroupMapper;
+
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.dcmc.apps.taskmanager.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
@@ -34,19 +39,22 @@ public class WorkGroupService {
     private final WorkGroupMapper workGroupMapper;
     private final WorkGroupUserRoleRepository workGroupUserRoleRepository;
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
     public WorkGroupService(
         WorkGroupRepository workGroupRepository,
         WorkGroupMapper workGroupMapper,
         GroupSecurityService groupSecurityService,
-        WorkGroupUserRoleRepository workGroupUserRoleRepository
-        , UserRepository userRepository
+        WorkGroupUserRoleRepository workGroupUserRoleRepository,
+        UserRepository userRepository,
+        UserMapper userMapper
     ) {
         this.workGroupRepository = workGroupRepository;
         this.workGroupMapper = workGroupMapper;
         this.groupSecurityService = groupSecurityService;
         this.workGroupUserRoleRepository = workGroupUserRoleRepository;
         this.userRepository = userRepository;
+        this.userMapper = userMapper;
     }
 
     /**
@@ -56,20 +64,29 @@ public class WorkGroupService {
      * @return the persisted entity.
      */
     public WorkGroupDTO save(WorkGroupDTO workGroupDTO) {
-        LOG.debug("Request to save WorkGroup : {}", workGroupDTO);
-        WorkGroup workGroup = workGroupMapper.toEntity(workGroupDTO);
-        workGroup = workGroupRepository.save(workGroup);
-
-        // Obtener el login del usuario actual
+        // 1. Obtener el login del usuario actual
         String currentUserLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
 
-        // Crear la relación OWNER
+        LOG.debug("Request to save WorkGroup : {}", workGroupDTO);
+
+        // 2. Crear la entidad WorkGroup a partir del DTO
+        WorkGroup workGroup = workGroupMapper.toEntity(workGroupDTO);
+
+        // 3. Guardar el grupo en la base de datos
+        workGroup = workGroupRepository.save(workGroup);
+
+        // 4. Buscar el usuario actual
+        var user = userRepository.findOneByLogin(currentUserLogin)
+            .orElseThrow(() -> new BadRequestAlertException("Usuario no encontrado", "User", "notfound"));
+
+        // 5. Crear y guardar la relación OWNER entre el usuario y el grupo
         WorkGroupUserRole ownerRole = new WorkGroupUserRole();
         ownerRole.setGroup(workGroup);
-        ownerRole.setUser(userRepository.findOneByLogin(currentUserLogin).orElseThrow());
+        ownerRole.setUser(user);
         ownerRole.setRole(GroupRole.OWNER);
         workGroupUserRoleRepository.save(ownerRole);
 
+        // 6. Retornar el DTO del grupo creado
         return workGroupMapper.toDto(workGroup);
     }
 
@@ -147,6 +164,14 @@ public class WorkGroupService {
     public void delete(Long id) {
         LOG.debug("Request to delete WorkGroup : {}", id);
         workGroupRepository.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserDTO> getAllUsersInGroup(Long groupId) {
+        return workGroupUserRoleRepository.findAllByGroup_Id(groupId).stream()
+            .map(WorkGroupUserRole::getUser)
+            .map(userMapper::userToUserDTO)
+            .collect(Collectors.toList());
     }
 
 }

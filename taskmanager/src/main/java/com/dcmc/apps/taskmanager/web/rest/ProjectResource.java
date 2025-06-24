@@ -1,8 +1,10 @@
 package com.dcmc.apps.taskmanager.web.rest;
 
 import com.dcmc.apps.taskmanager.repository.ProjectRepository;
+import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.service.ProjectService;
 import com.dcmc.apps.taskmanager.service.dto.ProjectDTO;
+import com.dcmc.apps.taskmanager.service.dto.UserDTO;
 import com.dcmc.apps.taskmanager.web.rest.errors.BadRequestAlertException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -18,6 +20,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tech.jhipster.web.util.HeaderUtil;
@@ -185,4 +189,22 @@ public class ProjectResource {
             .headers(HeaderUtil.createEntityDeletionAlert(applicationName, false, ENTITY_NAME, id.toString()))
             .build();
     }
+
+    @PutMapping("/{projectId}/assign-user/{userLogin}")
+    public ResponseEntity<ProjectDTO> assignUserToProject(
+        @PathVariable Long projectId,
+        @PathVariable String userLogin
+    ) {
+        ProjectDTO result = projectService.assignUserToProject(projectId, userLogin);
+        return ResponseEntity.ok().body(result);
+    }
+
+    @GetMapping("/projects/{id}/members")
+    public ResponseEntity<List<UserDTO>> getProjectMembers(@PathVariable Long id) {
+        String currentUserLogin = SecurityUtils.getCurrentUserLogin()
+            .orElseThrow(() -> new AccessDeniedException("Usuario no autenticado"));
+        List<UserDTO> members = projectService.findMembersByProjectId(id, currentUserLogin);
+        return ResponseEntity.ok(members);
+    }
+
 }

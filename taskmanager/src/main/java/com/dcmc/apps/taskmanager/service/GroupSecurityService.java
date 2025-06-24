@@ -36,12 +36,6 @@ public class GroupSecurityService {
         return role == GroupRole.MODERADOR || role == GroupRole.OWNER;
     }
 
-    public void checkOwner(Long groupId) {
-        if (!isOwner(groupId)) {
-            throw new AccessDeniedException("Acceso restringido a propietarios del grupo.");
-        }
-    }
-
     public void checkModerator(Long groupId) {
         if (!isModeratorOrOwner(groupId)) {
             throw new AccessDeniedException("Acceso restringido a moderadores o propietarios del grupo.");
@@ -54,4 +48,9 @@ public class GroupSecurityService {
             .map(WorkGroupUserRole::getRole)
             .orElse(null);
     }
+
+    public boolean isMember(Long groupId) {
+        return getUserRoleInGroup(groupId) != null;
+    }
+
 }

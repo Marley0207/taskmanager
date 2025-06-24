@@ -2,17 +2,11 @@ package com.dcmc.apps.taskmanager.service.dto;
 
 import com.dcmc.apps.taskmanager.domain.enumeration.TaskPriority;
 import com.dcmc.apps.taskmanager.domain.enumeration.TaskStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.*;
 import java.io.Serializable;
-import java.time.Instant;
-import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 
-/**
- * A DTO for the {@link com.dcmc.apps.taskmanager.domain.Task} entity.
- */
-@SuppressWarnings("common-java:DuplicatedBlocks")
 public class TaskDTO implements Serializable {
 
     private Long id;
@@ -30,20 +24,15 @@ public class TaskDTO implements Serializable {
     private TaskStatus status;
 
     @NotNull
-    private Instant createTime;
+    private Long workGroupId; // obligatorio
 
     @NotNull
-    private Instant updateTime;
+    private Long projectId;
 
-    @NotNull
-    private Boolean archived;
+    @JsonIgnore
+    private Set<UserDTO> assignedTos;
 
-    private Set<UserDTO> assignedTos = new HashSet<>();
-
-    @NotNull
-    private WorkGroupDTO workGroup;
-
-    private ProjectDTO project;
+    // Getters & Setters
 
     public Long getId() {
         return id;
@@ -85,30 +74,21 @@ public class TaskDTO implements Serializable {
         this.status = status;
     }
 
-    public Instant getCreateTime() {
-        return createTime;
+    public Long getWorkGroupId() {
+        return workGroupId;
     }
 
-    public void setCreateTime(Instant createTime) {
-        this.createTime = createTime;
+    public void setWorkGroupId(Long workGroupId) {
+        this.workGroupId = workGroupId;
     }
 
-    public Instant getUpdateTime() {
-        return updateTime;
+    public Long getProjectId() {
+        return projectId;
     }
 
-    public void setUpdateTime(Instant updateTime) {
-        this.updateTime = updateTime;
+    public void setProjectId(Long projectId) {
+        this.projectId = projectId;
     }
-
-    public Boolean getArchived() {
-        return archived;
-    }
-
-    public void setArchived(Boolean archived) {
-        this.archived = archived;
-    }
-
     public Set<UserDTO> getAssignedTos() {
         return assignedTos;
     }
@@ -117,58 +97,17 @@ public class TaskDTO implements Serializable {
         this.assignedTos = assignedTos;
     }
 
-    public WorkGroupDTO getWorkGroup() {
-        return workGroup;
-    }
-
-    public void setWorkGroup(WorkGroupDTO workGroup) {
-        this.workGroup = workGroup;
-    }
-
-    public ProjectDTO getProject() {
-        return project;
-    }
-
-    public void setProject(ProjectDTO project) {
-        this.project = project;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof TaskDTO)) {
-            return false;
-        }
-
-        TaskDTO taskDTO = (TaskDTO) o;
-        if (this.id == null) {
-            return false;
-        }
-        return Objects.equals(this.id, taskDTO.id);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(this.id);
-    }
-
-    // prettier-ignore
     @Override
     public String toString() {
         return "TaskDTO{" +
-            "id=" + getId() +
-            ", title='" + getTitle() + "'" +
-            ", description='" + getDescription() + "'" +
-            ", priority='" + getPriority() + "'" +
-            ", status='" + getStatus() + "'" +
-            ", createTime='" + getCreateTime() + "'" +
-            ", updateTime='" + getUpdateTime() + "'" +
-            ", archived='" + getArchived() + "'" +
-            ", assignedTos=" + getAssignedTos() +
-            ", workGroup=" + getWorkGroup() +
-            ", project=" + getProject() +
-            "}";
+            "id=" + id +
+            ", title='" + title + '\'' +
+            ", description='" + description + '\'' +
+            ", priority=" + priority +
+            ", status=" + status +
+            ", workGroupId=" + workGroupId +
+            ", projectId=" + projectId +
+            ", assignedTos=" + assignedTos +
+            '}';
     }
 }

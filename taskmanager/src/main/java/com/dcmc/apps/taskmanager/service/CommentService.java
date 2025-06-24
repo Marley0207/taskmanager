@@ -1,10 +1,14 @@
 package com.dcmc.apps.taskmanager.service;
 
 import com.dcmc.apps.taskmanager.domain.Comment;
+import com.dcmc.apps.taskmanager.domain.User;
 import com.dcmc.apps.taskmanager.repository.CommentRepository;
+import com.dcmc.apps.taskmanager.repository.UserRepository;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.service.dto.CommentDTO;
 import com.dcmc.apps.taskmanager.service.mapper.CommentMapper;
+
+import java.time.Instant;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -29,13 +33,16 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final GroupSecurityService groupSecurityService;
     private final CommentMapper commentMapper;
+    private final UserRepository userRepository;
 
     public CommentService(CommentRepository commentRepository
-        , CommentMapper commentMapper,
-        GroupSecurityService groupSecurityService) {
+        , CommentMapper commentMapper
+        ,GroupSecurityService groupSecurityService
+        , UserRepository userRepository) {
         this.commentRepository = commentRepository;
         this.commentMapper = commentMapper;
         this.groupSecurityService = groupSecurityService;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -47,20 +54,23 @@ public class CommentService {
     public CommentDTO save(CommentDTO commentDTO) {
         LOG.debug("Request to save Comment : {}", commentDTO);
 
-        // Obtener el usuario actual
         String currentUserLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
 
-        // Obtener el grupo asociado al comentario (vía la tarea)
-        Long taskId = commentDTO.getTask().getId();
+        Long taskId = commentDTO.getTaskId();
         Long groupId = commentRepository.findGroupIdByTaskId(taskId)
             .orElseThrow(() -> new IllegalArgumentException("No se encontró el grupo para la tarea"));
 
-        // Verificar membresía
         if (groupSecurityService.getUserRoleOf(currentUserLogin, groupId) == null) {
             throw new AccessDeniedException("Solo los miembros del grupo pueden comentar.");
         }
 
         Comment comment = commentMapper.toEntity(commentDTO);
+
+        // Busca el usuario y lo asigna como autor
+        User author = userRepository.findOneByLogin(currentUserLogin)
+            .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+        comment.setAuthor(author);
+        comment.setCreatedAt(Instant.now());
         comment = commentRepository.save(comment);
         return commentMapper.toDto(comment);
     }

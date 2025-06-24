@@ -36,22 +36,36 @@ public class GroupMembershipService {
         this.workGroupRepository = workGroupRepository;
         this.groupSecurityService = groupSecurityService;
     }
-
+    /**
+     * Agrega un usuario a un grupo con un rol específico.
+     * Si el rol es null, se asigna MIEMBRO por defecto.
+     *
+     * @param groupId ID del grupo al que se quiere agregar el usuario.
+     * @param userLogin Login del usuario a agregar.
+     * @param role Rol a asignar al usuario en el grupo (puede ser null).
+     */
     public void addUserToGroup(Long groupId, String userLogin, GroupRole role) {
-        checkPermissionToAssignRole(groupId, role);
+        // Validar que el usuario exista
+        User user = userRepository.findOneByLogin(userLogin)
+            .orElseThrow(() -> new BadRequestAlertException("Usuario no encontrado", "User", "notfound"));
 
-        WorkGroup group = workGroupRepository.findById(groupId).orElseThrow();
-        User user = userRepository.findOneByLogin(userLogin).orElseThrow();
+        // Si el rol es null, asignar MIEMBRO por defecto
+        GroupRole assignedRole = (role != null) ? role : GroupRole.MIEMBRO;
 
-        // Si ya existe, actualizar el rol
+        checkPermissionToAssignRole(groupId, assignedRole);
+
+        WorkGroup group = workGroupRepository.findById(groupId)
+            .orElseThrow(() -> new BadRequestAlertException("Grupo no encontrado", "WorkGroup", "notfound"));
+
+        // Validar si ya es miembro
         Optional<WorkGroupUserRole> existing = membershipRepository.findByUser_LoginAndGroup_Id(userLogin, groupId);
         if (existing.isPresent()) {
-            existing.get().setRole(role);
+            throw new BadRequestAlertException("El usuario ya es miembro del grupo", "WorkGroup", "alreadyingroup");
         } else {
             WorkGroupUserRole membership = new WorkGroupUserRole();
             membership.setUser(user);
             membership.setGroup(group);
-            membership.setRole(role);
+            membership.setRole(assignedRole);
             membershipRepository.save(membership);
         }
     }
@@ -97,6 +111,14 @@ public class GroupMembershipService {
             throw new AccessDeniedException("Solo MODERADOR u OWNER puede agregar miembros.");
         }
     }
+
+    /**
+     * Permite a un usuario abandonar un grupo.
+     * Si el usuario es el OWNER, se lanza una excepción.
+     *
+     * @param groupId ID del grupo del cual se quiere salir.
+     */
+
     public void leaveGroup(Long groupId) {
         String currentLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
         GroupRole currentRole = groupSecurityService.getUserRoleInGroup(groupId);
@@ -155,6 +177,33 @@ public class GroupMembershipService {
         }
 
         membership.setRole(GroupRole.MODERADOR);
+        membershipRepository.save(membership);
+    }
+
+    @Transactional
+    public void demoteModeratorToMember(Long groupId, String userLogin) {
+
+        // Buscar membresía
+        WorkGroupUserRole membership = membershipRepository
+            .findByUser_LoginAndGroup_Id(userLogin, groupId)
+            .orElseThrow(() -> new EntityNotFoundException("El usuario no pertenece al grupo."));
+
+        // Solo el OWNER puede degradar
+        if (!groupSecurityService.isOwner(groupId)) {
+            throw new AccessDeniedException("Solo el OWNER puede degradar moderadores.");
+        }
+
+        // Verificar que no sea OWNER
+        if (membership.getRole() == GroupRole.OWNER) {
+            throw new BadRequestAlertException("No puedes degradar al OWNER del grupo", "WorkGroup", "invalidaction");
+        }
+
+        if (membership.getRole() != GroupRole.MODERADOR) {
+            throw new BadRequestAlertException("Solo puedes degradar a usuarios que son MODERADOR", "WorkGroup", "notmoderator");
+        }
+
+        // Cambiar el rol
+        membership.setRole(GroupRole.MIEMBRO);
         membershipRepository.save(membership);
     }
 

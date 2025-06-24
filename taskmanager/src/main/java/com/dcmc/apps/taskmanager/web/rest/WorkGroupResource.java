@@ -4,6 +4,7 @@ import com.dcmc.apps.taskmanager.domain.enumeration.GroupRole;
 import com.dcmc.apps.taskmanager.repository.WorkGroupRepository;
 import com.dcmc.apps.taskmanager.service.GroupMembershipService;
 import com.dcmc.apps.taskmanager.service.WorkGroupService;
+import com.dcmc.apps.taskmanager.service.dto.UserDTO;
 import com.dcmc.apps.taskmanager.service.dto.WorkGroupDTO;
 import com.dcmc.apps.taskmanager.web.rest.errors.BadRequestAlertException;
 import jakarta.validation.Valid;
@@ -198,12 +199,19 @@ public class WorkGroupResource {
     @PostMapping("/{groupId}/members")
     public ResponseEntity<Void> addUserToGroup(
         @PathVariable Long groupId,
-        @RequestParam String userLogin,
-        @RequestParam GroupRole role
+        @RequestParam String userLogin
     ) {
-        membershipService.addUserToGroup(groupId, userLogin, role);
+        membershipService.addUserToGroup(groupId, userLogin, null);
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("{groupId}/members")
+    @PreAuthorize("@groupSecurityService.isMember(#groupId)")
+    public ResponseEntity<List<UserDTO>> getMembersOfGroup(@PathVariable Long groupId) {
+        List<UserDTO> users = workGroupService.getAllUsersInGroup(groupId);
+        return ResponseEntity.ok(users);
+    }
+
 
     @DeleteMapping("/{groupId}/members/{userLogin}")
     public ResponseEntity<Void> removeUserFromGroup(
@@ -220,7 +228,7 @@ public class WorkGroupResource {
         return ResponseEntity.noContent().build();
     }
 
-    @PutMapping("/work-groups/{groupId}/promote/{userLogin}")
+    @PutMapping("{groupId}/promote/{userLogin}")
     @PreAuthorize("@groupSecurityService.isModeratorOrOwner(#groupId)")
     public ResponseEntity<Void> promoteUserToModerator(
         @PathVariable Long groupId,
@@ -238,5 +246,16 @@ public class WorkGroupResource {
         membershipService.transferOwnership(groupId, newOwnerLogin);
         return ResponseEntity.ok().build();
     }
+
+    @PutMapping("{groupId}/demote/{userLogin}")
+    @PreAuthorize("@groupSecurityService.isOwner(#groupId)")
+    public ResponseEntity<Void> demoteModeratorToMember(
+        @PathVariable Long groupId,
+        @PathVariable String userLogin
+    ) {
+        membershipService.demoteModeratorToMember(groupId, userLogin);
+        return ResponseEntity.noContent().build();
+    }
+
 
 }

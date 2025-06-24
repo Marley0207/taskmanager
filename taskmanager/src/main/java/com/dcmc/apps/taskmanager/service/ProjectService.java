@@ -1,14 +1,30 @@
 package com.dcmc.apps.taskmanager.service;
 
 import com.dcmc.apps.taskmanager.domain.Project;
+import com.dcmc.apps.taskmanager.domain.User;
+import com.dcmc.apps.taskmanager.domain.WorkGroup;
+import com.dcmc.apps.taskmanager.domain.WorkGroupUserRole;
+import com.dcmc.apps.taskmanager.domain.enumeration.GroupRole;
 import com.dcmc.apps.taskmanager.repository.ProjectRepository;
+import com.dcmc.apps.taskmanager.repository.UserRepository;
+import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
+import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.service.dto.ProjectDTO;
+import com.dcmc.apps.taskmanager.service.dto.UserDTO;
 import com.dcmc.apps.taskmanager.service.mapper.ProjectMapper;
+
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
+import com.dcmc.apps.taskmanager.service.mapper.UserMapper;
+import com.dcmc.apps.taskmanager.web.rest.errors.BadRequestAlertException;
+import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,12 +38,22 @@ public class ProjectService {
     private static final Logger LOG = LoggerFactory.getLogger(ProjectService.class);
 
     private final ProjectRepository projectRepository;
-
+    private  final UserRepository userRepository;
     private final ProjectMapper projectMapper;
+    private final WorkGroupUserRoleRepository workGroupUserRoleRepository;
+    private final UserMapper userMapper;
 
-    public ProjectService(ProjectRepository projectRepository, ProjectMapper projectMapper) {
+    public ProjectService(ProjectRepository projectRepository
+        , ProjectMapper projectMapper
+        , UserRepository userRepository
+        , WorkGroupUserRoleRepository workGroupUserRoleRepository
+        , UserMapper userMapper)
+    {
         this.projectRepository = projectRepository;
         this.projectMapper = projectMapper;
+        this.userRepository = userRepository;
+        this.workGroupUserRoleRepository = workGroupUserRoleRepository;
+        this.userMapper = userMapper;
     }
 
     /**
@@ -37,9 +63,28 @@ public class ProjectService {
      * @return the persisted entity.
      */
     public ProjectDTO save(ProjectDTO projectDTO) {
-        LOG.debug("Request to save Project : {}", projectDTO);
         Project project = projectMapper.toEntity(projectDTO);
+
+        String currentUserLogin = SecurityUtils.getCurrentUserLogin()
+            .orElseThrow(() -> new AccessDeniedException("Usuario no autenticado"));
+
+        User user = userRepository.findOneByLogin(currentUserLogin)
+            .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
+
+        WorkGroup workGroup = project.getWorkGroup();
+        if (workGroup != null) {
+            boolean userInGroup = workGroupUserRoleRepository.existsByUser_LoginAndGroup_Id(user.getLogin(), workGroup.getId());
+            if (!userInGroup) {
+                // Lanzar excepción si no pertenece al grupo
+                throw new AccessDeniedException("El usuario no pertenece al grupo de trabajo del proyecto");
+            }
+        }
+
+        // Agrega al usuario como miembro del proyecto
+        project.getMembers().add(user);
+
         project = projectRepository.save(project);
+
         return projectMapper.toDto(project);
     }
 
@@ -118,4 +163,50 @@ public class ProjectService {
         LOG.debug("Request to delete Project : {}", id);
         projectRepository.deleteById(id);
     }
+
+    @Transactional
+    public ProjectDTO assignUserToProject(Long projectId, String userLogin) {
+        Project project = projectRepository.findById(projectId)
+            .orElseThrow(() -> new EntityNotFoundException("Proyecto no encontrado"));
+
+        Long groupId = project.getWorkGroup().getId();
+
+        // 💡 Verificamos si el usuario pertenece al grupo del proyecto
+        boolean isUserInGroup = workGroupUserRoleRepository.existsByUser_LoginAndGroup_Id(userLogin, groupId);
+        if (!isUserInGroup) {
+            throw new AccessDeniedException("El usuario no pertenece al grupo de trabajo del proyecto");
+        }
+
+        // 🔎 Obtenemos al usuario por login
+        User user = userRepository.findOneByLogin(userLogin)
+            .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
+
+        // ➕ Lo agregamos como miembro del proyecto si aún no lo es
+        if (!project.getMembers().contains(user)) {
+            project.getMembers().add(user);
+            project = projectRepository.save(project);
+        }
+        return projectMapper.toDto(project);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserDTO> findMembersByProjectId(Long projectId, String currentUserLogin) {
+        Project project = projectRepository.findById(projectId)
+            .orElseThrow(() -> new EntityNotFoundException("Proyecto no encontrado"));
+
+        Long groupId = project.getWorkGroup().getId();
+
+        // Validar si el usuario actual pertenece al grupo
+        boolean isMember = workGroupUserRoleRepository.existsByUser_LoginAndGroup_Id(currentUserLogin, groupId);
+        if (!isMember) {
+            throw new AccessDeniedException("El usuario no tiene rol en el grupo asociado al proyecto.");
+        }
+
+        // Convertir Set<User> a List<UserDTO>
+        return project.getMembers()
+            .stream()
+            .map(userMapper::userToUserDTO)
+            .collect(Collectors.toList());
+    }
+
 }

@@ -1,5 +1,6 @@
 package com.dcmc.apps.taskmanager.service.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.util.HashSet;
@@ -19,6 +20,7 @@ public class WorkGroupDTO implements Serializable {
 
     private String description;
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private Set<UserDTO> users = new HashSet<>();
 
     public Long getId() {

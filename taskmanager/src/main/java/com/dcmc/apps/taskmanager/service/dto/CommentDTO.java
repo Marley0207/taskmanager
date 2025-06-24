@@ -1,14 +1,11 @@
 package com.dcmc.apps.taskmanager.service.dto;
 
-import jakarta.validation.constraints.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Objects;
 
-/**
- * A DTO for the {@link com.dcmc.apps.taskmanager.domain.Comment} entity.
- */
-@SuppressWarnings("common-java:DuplicatedBlocks")
 public class CommentDTO implements Serializable {
 
     private Long id;
@@ -16,13 +13,14 @@ public class CommentDTO implements Serializable {
     @NotNull
     private String content;
 
-    @NotNull
-    private Instant createdAt;
+    @JsonIgnore
+    private Instant createdAt; // solo lectura
 
-    private UserDTO author;
+   @JsonIgnore
+    private UserDTO author; // solo lectura (login + id)
 
     @NotNull
-    private TaskDTO task;
+    private Long taskId; // identificador de la tarea
 
     public Long getId() {
         return id;
@@ -56,44 +54,35 @@ public class CommentDTO implements Serializable {
         this.author = author;
     }
 
-    public TaskDTO getTask() {
-        return task;
+    public Long getTaskId() {
+        return taskId;
     }
 
-    public void setTask(TaskDTO task) {
-        this.task = task;
+    public void setTaskId(Long taskId) {
+        this.taskId = taskId;
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof CommentDTO)) {
-            return false;
-        }
-
-        CommentDTO commentDTO = (CommentDTO) o;
-        if (this.id == null) {
-            return false;
-        }
-        return Objects.equals(this.id, commentDTO.id);
+        if (this == o) return true;
+        if (!(o instanceof CommentDTO)) return false;
+        CommentDTO that = (CommentDTO) o;
+        return id != null && id.equals(that.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(this.id);
+        return Objects.hash(id);
     }
 
-    // prettier-ignore
     @Override
     public String toString() {
         return "CommentDTO{" +
-            "id=" + getId() +
-            ", content='" + getContent() + "'" +
-            ", createdAt='" + getCreatedAt() + "'" +
-            ", author=" + getAuthor() +
-            ", task=" + getTask() +
-            "}";
+            "id=" + id +
+            ", content='" + content + '\'' +
+            ", createdAt=" + createdAt +
+            ", author=" + author +
+            ", taskId=" + taskId +
+            '}';
     }
 }

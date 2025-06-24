@@ -28,9 +28,11 @@ public class WorkGroupUserRole implements Serializable {
     private GroupRole role;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id", nullable = false)
     @JsonIgnoreProperties(value = { "projects", "tasks", "users" }, allowSetters = true)
     private WorkGroup group;
 
