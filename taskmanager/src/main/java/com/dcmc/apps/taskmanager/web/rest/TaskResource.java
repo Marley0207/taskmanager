@@ -49,13 +49,6 @@ public class TaskResource {
         this.taskRepository = taskRepository;
     }
 
-    /**
-     * {@code POST  /tasks} : Create a new task.
-     *
-     * @param taskDTO the taskDTO to create.
-     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new taskDTO, or with status {@code 400 (Bad Request)} if the task has already an ID.
-     * @throws URISyntaxException if the Location URI syntax is incorrect.
-     */
     @PostMapping("")
     public ResponseEntity<TaskDTO> createTask(@Valid @RequestBody TaskDTO taskDTO) throws URISyntaxException {
         LOG.debug("REST request to save Task : {}", taskDTO);
@@ -68,16 +61,6 @@ public class TaskResource {
             .body(taskDTO);
     }
 
-    /**
-     * {@code PUT  /tasks/:id} : Updates an existing task.
-     *
-     * @param id the id of the taskDTO to save.
-     * @param taskDTO the taskDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated taskDTO,
-     * or with status {@code 400 (Bad Request)} if the taskDTO is not valid,
-     * or with status {@code 500 (Internal Server Error)} if the taskDTO couldn't be updated.
-     * @throws URISyntaxException if the Location URI syntax is incorrect.
-     */
     @PutMapping("/{id}")
     public ResponseEntity<TaskDTO> updateTask(
         @PathVariable(value = "id", required = false) final Long id,
@@ -101,17 +84,6 @@ public class TaskResource {
             .body(taskDTO);
     }
 
-    /**
-     * {@code PATCH  /tasks/:id} : Partial updates given fields of an existing task, field will ignore if it is null
-     *
-     * @param id the id of the taskDTO to save.
-     * @param taskDTO the taskDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated taskDTO,
-     * or with status {@code 400 (Bad Request)} if the taskDTO is not valid,
-     * or with status {@code 404 (Not Found)} if the taskDTO is not found,
-     * or with status {@code 500 (Internal Server Error)} if the taskDTO couldn't be updated.
-     * @throws URISyntaxException if the Location URI syntax is incorrect.
-     */
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
     public ResponseEntity<TaskDTO> partialUpdateTask(
         @PathVariable(value = "id") final Long id,
@@ -123,9 +95,7 @@ public class TaskResource {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
 
-        // Asigna el ID manualmente desde la URL al DTO
         taskDTO.setId(id);
-
         Optional<TaskDTO> result = taskService.partialUpdate(taskDTO);
 
         return ResponseUtil.wrapOrNotFound(
@@ -134,14 +104,6 @@ public class TaskResource {
         );
     }
 
-
-    /**
-     * {@code GET  /tasks} : get all the tasks.
-     *
-     * @param pageable the pagination information.
-     * @param eagerload flag to eager load entities from relationships (This is applicable for many-to-many).
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of tasks in body.
-     */
     @GetMapping("")
     public ResponseEntity<List<TaskDTO>> getAllTasks(
         @org.springdoc.core.annotations.ParameterObject Pageable pageable,
@@ -158,12 +120,6 @@ public class TaskResource {
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }
 
-    /**
-     * {@code GET  /tasks/:id} : get the "id" task.
-     *
-     * @param id the id of the taskDTO to retrieve.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the taskDTO, or with status {@code 404 (Not Found)}.
-     */
     @GetMapping("/{id}")
     public ResponseEntity<TaskDTO> getTask(@PathVariable("id") Long id) {
         LOG.debug("REST request to get Task : {}", id);
@@ -171,12 +127,6 @@ public class TaskResource {
         return ResponseUtil.wrapOrNotFound(taskDTO);
     }
 
-    /**
-     * {@code DELETE  /tasks/:id} : delete the "id" task.
-     *
-     * @param id the id of the taskDTO to delete.
-     * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
-     */
     @DeleteMapping("/{groupId}/task/{id}")
     public ResponseEntity<Void> deleteTask(
         @PathVariable("groupId") Long groupId,
@@ -220,8 +170,7 @@ public class TaskResource {
         return ResponseEntity.noContent().build();
     }
 
-
-    @PutMapping("{taskId}/assign-user/{userLogin}")    //ajustado a OWNER/MODERADOR
+    @PutMapping("{taskId}/assign-user/{userLogin}")
     public ResponseEntity<TaskDTO> assignUserToTask(
         @PathVariable Long taskId,
         @PathVariable String userLogin

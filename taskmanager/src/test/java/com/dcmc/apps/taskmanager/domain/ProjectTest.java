@@ -27,26 +27,27 @@ class ProjectTest {
     }
 
     @Test
-    void subTasksTest() {
+    void tasksTest() {
         Project project = getProjectRandomSampleGenerator();
         Task taskBack = getTaskRandomSampleGenerator();
 
-        project.addSubTasks(taskBack);
-        assertThat(project.getSubTasks()).containsOnly(taskBack);
+        project.addTasks(taskBack);
+        assertThat(project.getTasks()).containsOnly(taskBack);
         assertThat(taskBack.getProject()).isEqualTo(project);
 
-        project.removeSubTasks(taskBack);
-        assertThat(project.getSubTasks()).doesNotContain(taskBack);
+        project.removeTasks(taskBack);
+        assertThat(project.getTasks()).doesNotContain(taskBack);
         assertThat(taskBack.getProject()).isNull();
 
-        project.subTasks(new HashSet<>(Set.of(taskBack)));
-        assertThat(project.getSubTasks()).containsOnly(taskBack);
+        project.tasks(new HashSet<>(Set.of(taskBack)));
+        assertThat(project.getTasks()).containsOnly(taskBack);
         assertThat(taskBack.getProject()).isEqualTo(project);
 
-        project.setSubTasks(new HashSet<>());
-        assertThat(project.getSubTasks()).doesNotContain(taskBack);
+        project.setTasks(new HashSet<>());
+        assertThat(project.getTasks()).doesNotContain(taskBack);
         assertThat(taskBack.getProject()).isNull();
     }
+
 
     @Test
     void workGroupTest() {

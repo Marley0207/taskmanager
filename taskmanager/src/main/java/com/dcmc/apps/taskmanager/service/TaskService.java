@@ -14,7 +14,9 @@ import com.dcmc.apps.taskmanager.service.mapper.TaskMapper;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.dcmc.apps.taskmanager.service.mapper.UserMapper;
@@ -73,22 +75,48 @@ public class TaskService {
             throw new AccessDeniedException("No puedes crear tareas en este grupo.");
         }
 
-        // Obtener el usuario actual
         String currentUserLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
         User currentUser = userRepository.findOneByLogin(currentUserLogin)
             .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
 
         Task task = taskMapper.toEntity(taskDTO);
-        task.setCreateTime(Instant.now());
-        task.setUpdateTime(Instant.now());
-        task.setArchived(false);
+        Instant now = Instant.now();
 
-        // Asignar al usuario creador
+        task.setCreateTime(now);
+        task.setUpdateTime(now);
+        task.setArchived(false);
         task.getAssignedTos().add(currentUser);
 
+        // Guardar tarea principal primero para obtener ID (importante si luego la usaremos como parentTask)
         task = taskRepository.save(task);
+
+        // Si hay IDs de subtareas, buscarlas y asignarlas
+        if (taskDTO.getSubTaskIds() != null && !taskDTO.getSubTaskIds().isEmpty()) {
+            for (Long subTaskId : taskDTO.getSubTaskIds()) {
+                Task subTask = taskRepository.findById(subTaskId)
+                    .orElseThrow(() -> new EntityNotFoundException("Subtarea no encontrada con id " + subTaskId));
+
+                // Verificación extra: evitar ciclos o referencias inválidas
+                if (Objects.equals(subTask.getId(), task.getId())) {
+                    throw new BadRequestAlertException("Una tarea no puede ser subtarea de sí misma", "Task", "invalidsubtask");
+                }
+
+                // Actualizar propiedades de la subtarea
+                subTask.setParentTask(task);
+                subTask.setWorkGroup(task.getWorkGroup());
+                subTask.setProject(task.getProject());
+                subTask.setUpdateTime(now);
+
+                // Importante: guardar la subtarea actualizada
+                taskRepository.save(subTask);
+            }
+        }
+
+        // Finalmente, devolver la tarea principal actualizada
         return taskMapper.toDto(task);
     }
+
+
 
     /**
      * Update a task.
@@ -106,7 +134,26 @@ public class TaskService {
 
         LOG.debug("Request to update Task : {}", taskDTO);
         Task task = taskMapper.toEntity(taskDTO);
+        Instant now = Instant.now();
+        task.setUpdateTime(now);
+
+        // Guardar tarea principal
         task = taskRepository.save(task);
+
+        // Actualizar subtareas (similar a save)
+        if (task.getSubTasks() != null && !task.getSubTasks().isEmpty()) {
+            for (Task subTask : task.getSubTasks()) {
+                if (subTask.getArchived() != null && subTask.getArchived()) {
+                    throw new BadRequestAlertException("No se puede editar una subtarea archivada", "Task", "archived");
+                }
+                subTask.setParentTask(task);
+                subTask.setWorkGroup(task.getWorkGroup());
+                subTask.setProject(task.getProject());
+                subTask.setUpdateTime(now);
+                taskRepository.save(subTask);
+            }
+        }
+
         return taskMapper.toDto(task);
     }
 
@@ -122,13 +169,26 @@ public class TaskService {
                 if (existingTask.getArchived()) {
                     throw new BadRequestAlertException("No se puede editar una tarea archivada", "Task", "archived");
                 }
-                // Actualiza solo los campos no nulos del DTO sobre la entidad existente
+
+                // Aplica los cambios simples del DTO
                 taskMapper.partialUpdate(existingTask, taskDTO);
+
+                // Lógica personalizada para subtareas
+                if (taskDTO.getSubTaskIds() != null) {
+                    Set<Task> subTaskEntities = taskDTO.getSubTaskIds().stream()
+                        .map(taskMapper::fromIdTask)
+                        .peek(subTask -> subTask.setParentTask(existingTask)) // Asigna correctamente la relación
+                        .collect(Collectors.toSet());
+
+                    existingTask.setSubTasks(subTaskEntities);
+                }
+
                 return existingTask;
             })
             .map(taskRepository::save)
             .map(taskMapper::toDto);
     }
+
 
     /**
      * Get all the tasks.
@@ -184,8 +244,8 @@ public class TaskService {
             throw new AccessDeniedException("Solo OWNER o MODERADOR puede archivar tareas.");
         }
 
-        task.setArchived(true);
-        task.setUpdateTime(Instant.now());
+        archiveTaskRecursive(task);
+
         return taskMapper.toDto(taskRepository.save(task));
     }
 
@@ -271,6 +331,17 @@ public class TaskService {
         return task.getAssignedTos().stream()
             .map(userMapper::toDtoLogin)
             .collect(Collectors.toList());
+    }
+
+    private void archiveTaskRecursive(Task task) {
+        task.setArchived(true);
+        task.setUpdateTime(Instant.now());
+        taskRepository.save(task);
+        if (task.getSubTasks() != null) {
+            for (Task subTask : task.getSubTasks()) {
+                archiveTaskRecursive(subTask);
+            }
+        }
     }
 
 }

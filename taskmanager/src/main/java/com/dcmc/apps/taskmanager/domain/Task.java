@@ -77,6 +77,15 @@ public class Task implements Serializable {
     @JsonIgnoreProperties(value = { "subTasks", "members", "workGroup" }, allowSetters = true)
     private Project project;
 
+    @OneToMany(mappedBy = "parentTask", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties(value = { "parentTask", "subTasks" }, allowSetters = true)
+    private Set<Task> subTasks = new HashSet<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_task_id")
+    @JsonIgnoreProperties(value = { "subTasks", "parentTask" }, allowSetters = true)
+    private Task parentTask;
+
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
     public Long getId() {
@@ -262,6 +271,50 @@ public class Task implements Serializable {
         this.setProject(project);
         return this;
     }
+    public Task getParentTask() {
+        return this.parentTask;
+    }
+
+    public void setParentTask(Task parentTask) {
+        this.parentTask = parentTask;
+    }
+
+    public Task parentTask(Task parentTask) {
+        this.setParentTask(parentTask);
+        return this;
+    }
+
+    public Set<Task> getSubTasks() {
+        return this.subTasks;
+    }
+
+    public void setSubTasks(Set<Task> tasks) {
+        if (this.subTasks != null) {
+            this.subTasks.forEach(t -> t.setParentTask(null));
+        }
+        if (tasks != null) {
+            tasks.forEach(t -> t.setParentTask(this));
+        }
+        this.subTasks = tasks;
+    }
+
+    public Task subTasks(Set<Task> tasks) {
+        this.setSubTasks(tasks);
+        return this;
+    }
+
+    public Task addSubTask(Task task) {
+        this.subTasks.add(task);
+        task.setParentTask(this);
+        return this;
+    }
+
+    public Task removeSubTask(Task task) {
+        this.subTasks.remove(task);
+        task.setParentTask(null);
+        return this;
+    }
+
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
 

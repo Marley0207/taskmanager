@@ -31,8 +31,9 @@ public class Project implements Serializable {
     private String description;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "project")
-    @JsonIgnoreProperties(value = { "comments", "assignedTos", "workGroup", "project" }, allowSetters = true)
-    private Set<Task> subTasks = new HashSet<>();
+    @JsonIgnoreProperties(value = { "comments", "assignedTos", "workGroup", "project",  "subTasks", "parentTask" }, allowSetters = true)
+    private Set<Task> tasks = new HashSet<>();
+
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -88,36 +89,37 @@ public class Project implements Serializable {
         this.description = description;
     }
 
-    public Set<Task> getSubTasks() {
-        return this.subTasks;
+    public Set<Task> getTasks() {
+        return this.tasks;
     }
 
-    public void setSubTasks(Set<Task> tasks) {
-        if (this.subTasks != null) {
-            this.subTasks.forEach(i -> i.setProject(null));
+    public void setTasks(Set<Task> tasks) {
+        if (this.tasks != null) {
+            this.tasks.forEach(i -> i.setProject(null));
         }
         if (tasks != null) {
             tasks.forEach(i -> i.setProject(this));
         }
-        this.subTasks = tasks;
+        this.tasks = tasks;
     }
 
-    public Project subTasks(Set<Task> tasks) {
-        this.setSubTasks(tasks);
+    public Project tasks(Set<Task> tasks) {
+        this.setTasks(tasks);
         return this;
     }
 
-    public Project addSubTasks(Task task) {
-        this.subTasks.add(task);
+    public Project addTasks(Task task) {
+        this.tasks.add(task);
         task.setProject(this);
         return this;
     }
 
-    public Project removeSubTasks(Task task) {
-        this.subTasks.remove(task);
+    public Project removeTasks(Task task) {
+        this.tasks.remove(task);
         task.setProject(null);
         return this;
     }
+
 
     public Set<User> getMembers() {
         return this.members;

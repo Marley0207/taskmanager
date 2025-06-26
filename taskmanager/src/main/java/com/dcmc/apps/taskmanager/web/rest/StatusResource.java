@@ -27,11 +27,11 @@ import tech.jhipster.web.util.ResponseUtil;
 public class StatusResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(StatusResource.class);
-
     private static final String ENTITY_NAME = "taskmanagerStatus";
 
     @Value("${jhipster.clientApp.name}")
     private String applicationName;
+
     private final StatusService statusService;
     private final StatusRepository statusRepository;
 
@@ -40,41 +40,26 @@ public class StatusResource {
         this.statusRepository = statusRepository;
     }
 
-    /**
-     * {@code POST  /statuses} : Create a new status.
-     *
-     * @param statusDTO the statusDTO to create.
-     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new statusDTO, or with status {@code 400 (Bad Request)} if the status has already an ID.
-     * @throws URISyntaxException if the Location URI syntax is incorrect.
-     */
     @PostMapping("")
-    public ResponseEntity<StatusDTO> createStatus(@Valid @RequestBody StatusDTO statusDTO, @RequestParam Long groupId
+    public ResponseEntity<StatusDTO> createStatus(
+        @Valid @RequestBody StatusDTO statusDTO,
+        @RequestParam Long taskId
     ) throws URISyntaxException {
         LOG.debug("REST request to save Status : {}", statusDTO);
         if (statusDTO.getId() != null) {
             throw new BadRequestAlertException("A new status cannot already have an ID", ENTITY_NAME, "idexists");
         }
-        statusDTO = statusService.save(statusDTO, groupId);
+        statusDTO = statusService.save(statusDTO, taskId);
         return ResponseEntity.created(new URI("/api/statuses/" + statusDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, false, ENTITY_NAME, statusDTO.getId().toString()))
             .body(statusDTO);
     }
 
-    /**
-     * {@code PUT  /statuses/:id} : Updates an existing status.
-     *
-     * @param id the id of the statusDTO to save.
-     * @param statusDTO the statusDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated statusDTO,
-     * or with status {@code 400 (Bad Request)} if the statusDTO is not valid,
-     * or with status {@code 500 (Internal Server Error)} if the statusDTO couldn't be updated.
-     * @throws URISyntaxException if the Location URI syntax is incorrect.
-     */
     @PutMapping("/{id}")
     public ResponseEntity<StatusDTO> updateStatus(
         @PathVariable(value = "id", required = false) final Long id,
         @Valid @RequestBody StatusDTO statusDTO,
-        @RequestParam Long groupId
+        @RequestParam Long taskId
     ) throws URISyntaxException {
         LOG.debug("REST request to update Status : {}, {}", id, statusDTO);
         if (statusDTO.getId() == null) {
@@ -86,28 +71,17 @@ public class StatusResource {
         if (!statusRepository.existsById(id)) {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
-        statusDTO = statusService.update(statusDTO, groupId);
+        statusDTO = statusService.update(statusDTO, taskId);
         return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, false, ENTITY_NAME, statusDTO.getId().toString()))
             .body(statusDTO);
     }
 
-    /**
-     * {@code PATCH  /statuses/:id} : Partial updates given fields of an existing status, field will ignore if it is null
-     *
-     * @param id the id of the statusDTO to save.
-     * @param statusDTO the statusDTO to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated statusDTO,
-     * or with status {@code 400 (Bad Request)} if the statusDTO is not valid,
-     * or with status {@code 404 (Not Found)} if the statusDTO is not found,
-     * or with status {@code 500 (Internal Server Error)} if the statusDTO couldn't be updated.
-     * @throws URISyntaxException if the Location URI syntax is incorrect.
-     */
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
     public ResponseEntity<StatusDTO> partialUpdateStatus(
         @PathVariable(value = "id", required = false) final Long id,
         @RequestBody StatusDTO statusDTO,
-        @RequestParam Long groupId
+        @RequestParam Long taskId
     ) throws URISyntaxException {
         LOG.debug("REST request to partial update Status : {}, {}", id, statusDTO);
         if (statusDTO.getId() == null) {
@@ -119,30 +93,19 @@ public class StatusResource {
         if (!statusRepository.existsById(id)) {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
-        Optional<StatusDTO> result = statusService.partialUpdate(statusDTO, groupId);
+        Optional<StatusDTO> result = statusService.partialUpdate(statusDTO, taskId);
         return ResponseUtil.wrapOrNotFound(
             result,
             HeaderUtil.createEntityUpdateAlert(applicationName, false, ENTITY_NAME, statusDTO.getId().toString())
         );
     }
 
-    /**
-     * {@code GET  /statuses} : get all the statuses.
-     *
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of statuses in body.
-     */
     @GetMapping("")
     public List<StatusDTO> getAllStatuses() {
         LOG.debug("REST request to get all Statuses");
         return statusService.findAll();
     }
 
-    /**
-     * {@code GET  /statuses/:id} : get the "id" status.
-     *
-     * @param id the id of the statusDTO to retrieve.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the statusDTO, or with status {@code 404 (Not Found)}.
-     */
     @GetMapping("/{id}")
     public ResponseEntity<StatusDTO> getStatus(@PathVariable("id") Long id) {
         LOG.debug("REST request to get Status : {}", id);
@@ -150,20 +113,15 @@ public class StatusResource {
         return ResponseUtil.wrapOrNotFound(statusDTO);
     }
 
-    /**
-     * {@code DELETE  /statuses/:id} : delete the "id" status.
-     *
-     * @param id the id of the statusDTO to delete.
-     * @return the {@link ResponseEntity} with status {@code 204 (NO_CONTENT)}.
-     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteStatus(
         @PathVariable("id") Long id,
-        @RequestParam Long groupId
+        @RequestParam Long taskId
     ) {
-        statusService.delete(id, groupId);
+        statusService.delete(id, taskId);
         return ResponseEntity.noContent()
             .headers(HeaderUtil.createEntityDeletionAlert(applicationName, false, ENTITY_NAME, id.toString()))
             .build();
     }
 }
+
