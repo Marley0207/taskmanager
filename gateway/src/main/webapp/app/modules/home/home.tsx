@@ -31,11 +31,13 @@ export const Home = () => {
         <p className="lead">This is your homepage</p>
         {account?.login ? (
           <div>
-            <Alert color="success">You are logged in as user &quot;{account.login}&quot;.</Alert>
+            <Alert color="success" timeout={5000}>
+              You are logged in as user &quot;{account.login}&quot;.
+            </Alert>
           </div>
         ) : (
           <div>
-            <Alert color="warning">
+            <Alert color="warning" timeout={5000}>
               If you want to
               <span>&nbsp;</span>
               <a

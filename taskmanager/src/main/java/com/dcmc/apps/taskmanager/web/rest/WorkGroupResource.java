@@ -5,6 +5,7 @@ import com.dcmc.apps.taskmanager.repository.WorkGroupRepository;
 import com.dcmc.apps.taskmanager.service.GroupMembershipService;
 import com.dcmc.apps.taskmanager.service.WorkGroupService;
 import com.dcmc.apps.taskmanager.service.dto.UserDTO;
+import com.dcmc.apps.taskmanager.service.dto.UserGroupRoleDTO;
 import com.dcmc.apps.taskmanager.service.dto.WorkGroupDTO;
 import com.dcmc.apps.taskmanager.web.rest.errors.BadRequestAlertException;
 import jakarta.validation.Valid;
@@ -207,8 +208,8 @@ public class WorkGroupResource {
 
     @GetMapping("{groupId}/members")
     @PreAuthorize("@groupSecurityService.isMember(#groupId)")
-    public ResponseEntity<List<UserDTO>> getMembersOfGroup(@PathVariable Long groupId) {
-        List<UserDTO> users = workGroupService.getAllUsersInGroup(groupId);
+    public ResponseEntity<List<UserGroupRoleDTO>> getMembersOfGroup(@PathVariable Long groupId) {
+        List<UserGroupRoleDTO> users = workGroupService.getAllUsersInGroup(groupId);
         return ResponseEntity.ok(users);
     }
 

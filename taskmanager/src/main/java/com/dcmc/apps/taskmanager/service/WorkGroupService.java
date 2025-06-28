@@ -8,6 +8,7 @@ import com.dcmc.apps.taskmanager.repository.WorkGroupRepository;
 import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.service.dto.UserDTO;
+import com.dcmc.apps.taskmanager.service.dto.UserGroupRoleDTO;
 import com.dcmc.apps.taskmanager.service.dto.WorkGroupDTO;
 import com.dcmc.apps.taskmanager.service.mapper.UserMapper;
 import com.dcmc.apps.taskmanager.service.mapper.WorkGroupMapper;
@@ -167,10 +168,12 @@ public class WorkGroupService {
     }
 
     @Transactional(readOnly = true)
-    public List<UserDTO> getAllUsersInGroup(Long groupId) {
+    public List<UserGroupRoleDTO> getAllUsersInGroup(Long groupId) {
         return workGroupUserRoleRepository.findAllByGroup_Id(groupId).stream()
-            .map(WorkGroupUserRole::getUser)
-            .map(userMapper::userToUserDTO)
+            .map(wgur -> new UserGroupRoleDTO(
+                userMapper.userToUserDTO(wgur.getUser()),
+                wgur.getRole()
+            ))
             .collect(Collectors.toList());
     }
 

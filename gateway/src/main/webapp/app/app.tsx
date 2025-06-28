@@ -17,7 +17,8 @@ import ErrorBoundary from 'app/shared/error/error-boundary';
 import { AUTHORITIES } from 'app/config/constants';
 import AppRoutes from 'app/routes';
 
-const baseHref = document.querySelector('base').getAttribute('href').replace(/\/$/, '');
+const baseElement = document.querySelector('base');
+const baseHref = baseElement?.getAttribute('href')?.replace(/\/$/, '') || '';
 
 export const App = () => {
   const dispatch = useAppDispatch();

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Navigate, PathRouteProps, useLocation } from 'react-router-dom';
-
 import { useAppSelector } from 'app/config/store';
 import ErrorBoundary from 'app/shared/error/error-boundary';
 

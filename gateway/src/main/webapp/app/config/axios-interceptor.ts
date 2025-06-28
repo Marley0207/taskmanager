@@ -1,14 +1,14 @@
-import axios, { type AxiosError } from 'axios';
+import axios, { type AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 
 const TIMEOUT = 1 * 60 * 1000;
 axios.defaults.timeout = TIMEOUT;
 axios.defaults.baseURL = SERVER_API_URL;
 
-const setupAxiosInterceptors = onUnauthenticated => {
-  const onRequestSuccess = config => {
+const setupAxiosInterceptors = (onUnauthenticated: () => void) => {
+  const onRequestSuccess = (config: InternalAxiosRequestConfig) => {
     return config;
   };
-  const onResponseSuccess = response => response;
+  const onResponseSuccess = (response: AxiosResponse) => response;
   const onResponseError = (err: AxiosError) => {
     const status = err.status || (err.response ? err.response.status : 0);
     if (status === 401) {
