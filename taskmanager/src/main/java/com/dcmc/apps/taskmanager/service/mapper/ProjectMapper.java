@@ -16,7 +16,7 @@ import org.mapstruct.*;
 @Mapper(componentModel = "spring")
 public interface ProjectMapper extends EntityMapper<ProjectDTO, Project> {
     @Mapping(target = "members", source = "members", qualifiedByName = "userLoginSet")
-    @Mapping(target = "workGroup", source = "workGroup", qualifiedByName = "workGroupId")
+    @Mapping(target = "workGroup", source = "workGroup") // <-- Mapea el objeto completo
     ProjectDTO toDto(Project s);
 
     @Mapping(target = "removeMembers", ignore = true)
@@ -32,9 +32,4 @@ public interface ProjectMapper extends EntityMapper<ProjectDTO, Project> {
     default Set<UserDTO> toDtoUserLoginSet(Set<User> user) {
         return user.stream().map(this::toDtoUserLogin).collect(Collectors.toSet());
     }
-
-    @Named("workGroupId")
-    @BeanMapping(ignoreByDefault = true)
-    @Mapping(target = "id", source = "id")
-    WorkGroupDTO toDtoWorkGroupId(WorkGroup workGroup);
 }

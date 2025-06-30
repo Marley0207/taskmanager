@@ -258,5 +258,12 @@ public class WorkGroupResource {
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasAuthority('ROLE_USER')")
+    @GetMapping("/my-groups")
+    public ResponseEntity<List<WorkGroupDTO>> getMyWorkGroups() {
+        List<WorkGroupDTO> result = workGroupService.findByCurrentUser();
+        return ResponseEntity.ok().body(result);
+    }
+
 
 }

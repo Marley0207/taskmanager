@@ -6,6 +6,7 @@ import AddMemberModal from './AddMemberModal';
 import RemoveMemberModal from './RemoveMemberModal';
 import ManageRolesModal from './ManageRolesModal';
 import TransferOwnershipModal from './TransferOwnershipModal';
+import LeaveGroupModal from './LeaveGroupModal';
 import './work-group-details.scss';
 import { IWorkGroup, IWorkGroupMember } from './work-group.model';
 
@@ -21,6 +22,7 @@ const WorkGroupDetails = () => {
   const [isRemoveMemberModalOpen, setIsRemoveMemberModalOpen] = useState(false);
   const [isManageRolesModalOpen, setIsManageRolesModalOpen] = useState(false);
   const [isTransferOwnershipModalOpen, setIsTransferOwnershipModalOpen] = useState(false);
+  const [isLeaveGroupModalOpen, setIsLeaveGroupModalOpen] = useState(false);
 
   // Obtener información del usuario actual desde Redux
   const account = useAppSelector(state => state.authentication.account);
@@ -94,6 +96,11 @@ const WorkGroupDetails = () => {
   };
 
   const handleOwnershipTransferred = () => {
+    // Recargar los datos del grupo para reflejar los cambios de rol
+    loadGroupData();
+  };
+
+  const handleGroupLeft = () => {
     // Redirigir a la lista de grupos ya que el usuario salió del grupo
     navigate('/work-groups');
   };
@@ -233,7 +240,7 @@ const WorkGroupDetails = () => {
               </button>
             )}
             {canLeaveGroup() && (
-              <button className="danger-btn">
+              <button className="danger-btn" onClick={() => setIsLeaveGroupModalOpen(true)}>
                 <span className="btn-icon">🚪</span>
                 <span className="btn-text">Salir del Grupo</span>
               </button>
@@ -277,6 +284,15 @@ const WorkGroupDetails = () => {
         members={members}
         currentUser={currentUser}
         onOwnershipTransferred={handleOwnershipTransferred}
+      />
+
+      <LeaveGroupModal
+        isOpen={isLeaveGroupModalOpen}
+        onClose={() => setIsLeaveGroupModalOpen(false)}
+        workGroupId={Number(id)}
+        groupName={groupName}
+        currentUserRole={currentUser?.role}
+        onGroupLeft={handleGroupLeft}
       />
     </div>
   );

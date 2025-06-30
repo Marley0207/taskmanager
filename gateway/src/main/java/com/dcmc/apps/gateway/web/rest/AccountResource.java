@@ -88,7 +88,10 @@ public class AccountResource {
 
         @JsonAnyGetter
         public Map<String, Object> getDetails() {
-            return details;
+            // Filtra el campo "activated" y "enabled" para que no se dupliquen en el JSON
+            return details.entrySet().stream()
+                .filter(e -> !e.getKey().equalsIgnoreCase("activated") && !e.getKey().equalsIgnoreCase("enabled"))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         }
     }
 

@@ -5,6 +5,8 @@ const apiUrl = 'services/taskmanager/api/work-groups';
 
 export const getWorkGroups = () => axios.get<IWorkGroup[]>(apiUrl);
 
+export const getMyWorkGroups = () => axios.get<IWorkGroup[]>(`${apiUrl}/my-groups`);
+
 export const getWorkGroup = (id: number) => axios.get<IWorkGroup>(`${apiUrl}/${id}`);
 
 export const createWorkGroup = (entity: IWorkGroup) => axios.post<IWorkGroup>(apiUrl, entity);
@@ -18,8 +20,8 @@ export const getWorkGroupMembers = (id: number) => axios.get<IWorkGroupMember[]>
 
 export const getAvailableUsers = () => axios.get('/services/taskmanager/api/users');
 
-export const addMemberToWorkGroup = (workGroupId: number, userLogin: string, role?: string) =>
-  axios.post(`/services/taskmanager/api/work-groups/${workGroupId}/members?userLogin=${userLogin}&role=${role || 'MIEMBRO'}`);
+export const addMemberToWorkGroup = (workGroupId: number, userLogin: string) =>
+  axios.post(`/services/taskmanager/api/work-groups/${workGroupId}/members?userLogin=${userLogin}`);
 
 export const removeMemberFromWorkGroup = (workGroupId: number, userId: number) =>
   axios.delete(`/services/taskmanager/api/work-groups/${workGroupId}/members/${userId}`);

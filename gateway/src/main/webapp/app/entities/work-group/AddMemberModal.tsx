@@ -23,7 +23,6 @@ interface AddMemberModalProps {
 const AddMemberModal = ({ isOpen, onClose, workGroupId, onMemberAdded, existingMembers, currentUserRole }: AddMemberModalProps) => {
   const [availableUsers, setAvailableUsers] = useState<IUser[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
-  const [selectedRoles, setSelectedRoles] = useState<{ [userId: number]: string }>({});
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -49,28 +48,6 @@ const AddMemberModal = ({ isOpen, onClose, workGroupId, onMemberAdded, existingM
 
   const handleUserToggle = (userId: number) => {
     setSelectedUsers(prev => (prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]));
-
-    // Si se añade un usuario, asignar rol por defecto
-    if (!selectedUsers.includes(userId)) {
-      setSelectedRoles(prev => ({
-        ...prev,
-        [userId]: 'MIEMBRO',
-      }));
-    } else {
-      // Si se quita un usuario, limpiar su rol
-      setSelectedRoles(prev => {
-        const newRoles = { ...prev };
-        delete newRoles[userId];
-        return newRoles;
-      });
-    }
-  };
-
-  const handleRoleChange = (userId: number, role: string) => {
-    setSelectedRoles(prev => ({
-      ...prev,
-      [userId]: role,
-    }));
   };
 
   const handleAddMembers = async () => {
@@ -81,9 +58,9 @@ const AddMemberModal = ({ isOpen, onClose, workGroupId, onMemberAdded, existingM
       for (const userId of selectedUsers) {
         try {
           const user = availableUsers.find(u => u.id === userId);
-          const role = selectedRoles[userId] || 'MIEMBRO';
           if (user) {
-            await addMemberToWorkGroup(workGroupId, user.login, role);
+            // El backend asignará automáticamente el rol de MIEMBRO
+            await addMemberToWorkGroup(workGroupId, user.login);
           }
         } catch (error: any) {
           console.error(`Error al añadir usuario ${userId}:`, error.response?.data || error.message);
@@ -91,7 +68,6 @@ const AddMemberModal = ({ isOpen, onClose, workGroupId, onMemberAdded, existingM
         }
       }
       setSelectedUsers([]);
-      setSelectedRoles({});
       onMemberAdded();
       onClose();
     } catch (error: any) {
@@ -110,10 +86,6 @@ const AddMemberModal = ({ isOpen, onClose, workGroupId, onMemberAdded, existingM
       (user.lastName && user.lastName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase())),
   );
-
-  // Determinar qué roles puede asignar el usuario actual
-  const canAssignModeratorRole = currentUserRole === 'OWNER';
-  const canAssignMemberRole = currentUserRole === 'OWNER' || currentUserRole === 'MODERADOR';
 
   if (!isOpen) return null;
 
@@ -177,17 +149,6 @@ const AddMemberModal = ({ isOpen, onClose, workGroupId, onMemberAdded, existingM
                           {user.email && <div className="user-email">{user.email}</div>}
                         </div>
                         <div className="user-actions">
-                          {selectedUsers.includes(user.id) && (
-                            <select
-                              className="role-selector"
-                              value={selectedRoles[user.id] || 'MIEMBRO'}
-                              onChange={e => handleRoleChange(user.id, e.target.value)}
-                              onClick={e => e.stopPropagation()}
-                            >
-                              {canAssignMemberRole && <option value="MIEMBRO">Miembro</option>}
-                              {canAssignModeratorRole && <option value="MODERADOR">Moderador</option>}
-                            </select>
-                          )}
                           <div className="selection-indicator">
                             {selectedUsers.includes(user.id) && <span className="check-icon">✓</span>}
                           </div>
@@ -202,6 +163,7 @@ const AddMemberModal = ({ isOpen, onClose, workGroupId, onMemberAdded, existingM
                 {selectedUsers.length > 0 && (
                   <div className="summary-text">
                     {selectedUsers.length} {selectedUsers.length === 1 ? 'usuario seleccionado' : 'usuarios seleccionados'}
+                    <div className="role-info">Se añadirán como miembros del grupo</div>
                   </div>
                 )}
               </div>

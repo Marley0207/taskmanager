@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getWorkGroups } from './work-group.api';
+import { useAppSelector } from 'app/config/store';
+import { getWorkGroups, getMyWorkGroups } from './work-group.api';
 import { IWorkGroup } from './work-group.model';
 import EditWorkGroupModal from './EditWorkGroupModal';
 import './work-group-list.scss';
@@ -12,14 +13,28 @@ const WorkGroupList = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const navigate = useNavigate();
 
+  // Obtener información del usuario actual desde Redux
+  const account = useAppSelector(state => state.authentication.account);
+  const isAuthenticated = useAppSelector(state => state.authentication.isAuthenticated);
+
+  // Verificar si el usuario es administrador
+  const isAdmin = () => {
+    if (!account || !account.authorities) return false;
+    return account.authorities.some((authority: any) => authority === 'ROLE_ADMIN');
+  };
+
   const loadWorkGroups = () => {
     setLoading(true);
-    getWorkGroups()
+
+    // Si es admin, cargar todos los grupos, sino solo los del usuario
+    const apiCall = isAdmin() ? getWorkGroups() : getMyWorkGroups();
+
+    apiCall
       .then(response => {
         setWorkGroups(response.data);
       })
       .catch(error => {
-        console.error('Error en getWorkGroups:', error);
+        console.error('Error al cargar grupos de trabajo:', error);
       })
       .finally(() => {
         setLoading(false);
@@ -27,8 +42,10 @@ const WorkGroupList = () => {
   };
 
   useEffect(() => {
-    loadWorkGroups();
-  }, []);
+    if (isAuthenticated) {
+      loadWorkGroups();
+    }
+  }, [isAuthenticated]);
 
   const handleEditWorkGroup = (workGroup: IWorkGroup) => {
     setSelectedWorkGroup(workGroup);
@@ -43,6 +60,18 @@ const WorkGroupList = () => {
     setIsEditModalOpen(false);
     setSelectedWorkGroup(null);
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="work-group-list">
+        <div className="empty-state">
+          <div className="empty-icon">🔐</div>
+          <div className="empty-title">Acceso Requerido</div>
+          <div className="empty-description">Debes iniciar sesión para ver los grupos de trabajo.</div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -60,8 +89,12 @@ const WorkGroupList = () => {
       <div className="work-group-list">
         <div className="empty-state">
           <div className="empty-icon">👥</div>
-          <div className="empty-title">No hay grupos de trabajo</div>
-          <div className="empty-description">No se encontraron grupos de trabajo para mostrar en este momento.</div>
+          <div className="empty-title">{isAdmin() ? 'No hay grupos de trabajo' : 'No perteneces a ningún grupo'}</div>
+          <div className="empty-description">
+            {isAdmin()
+              ? 'No se encontraron grupos de trabajo para mostrar en este momento.'
+              : 'No perteneces a ningún grupo de trabajo. Contacta a un administrador para ser añadido a un grupo.'}
+          </div>
         </div>
       </div>
     );
@@ -73,7 +106,15 @@ const WorkGroupList = () => {
         <div className="header-content">
           <div className="title-section">
             <h2>Grupos de Trabajo</h2>
-            <div className="subtitle">Gestiona y visualiza todos los grupos de trabajo de tu organización</div>
+            <div className="subtitle">
+              {isAdmin() ? 'Gestiona y visualiza todos los grupos de trabajo de la organización' : 'Grupos de trabajo a los que perteneces'}
+            </div>
+            {isAdmin() && (
+              <div className="admin-badge">
+                <span className="badge-icon">👑</span>
+                <span className="badge-text">Vista de Administrador</span>
+              </div>
+            )}
           </div>
           <button className="create-workgroup-btn" onClick={() => navigate('/work-groups/create')}>
             <span className="btn-icon">👥</span>

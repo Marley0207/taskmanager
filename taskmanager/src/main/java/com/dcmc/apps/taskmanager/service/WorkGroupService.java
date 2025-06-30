@@ -177,4 +177,17 @@ public class WorkGroupService {
             .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<WorkGroupDTO> findByCurrentUser() {
+        String currentUserLogin = SecurityUtils.getCurrentUserLogin()
+            .orElseThrow(() -> new IllegalStateException("No hay un usuario autenticado"));
+
+        List<WorkGroup> groups = workGroupUserRoleRepository.findAllByUser_Login(currentUserLogin).stream()
+            .map(WorkGroupUserRole::getGroup)
+            .distinct()
+            .toList();
+
+        return workGroupMapper.toDto(groups);
+    }
+
 }

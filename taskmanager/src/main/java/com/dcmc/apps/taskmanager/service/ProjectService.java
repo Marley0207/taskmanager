@@ -209,4 +209,11 @@ public class ProjectService {
             .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<ProjectDTO> findByWorkGroupId(Long workGroupId) {
+        List<Project> projects = projectRepository.findAllByWorkGroup_Id(workGroupId);
+        return projectMapper.toDto(projects);
+    }
+
+
 }

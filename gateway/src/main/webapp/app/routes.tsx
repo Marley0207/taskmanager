@@ -12,7 +12,6 @@ import PrivateRoute from 'app/shared/auth/private-route';
 import ErrorBoundaryRoutes from 'app/shared/error/error-boundary-routes';
 import PageNotFound from 'app/shared/error/page-not-found';
 import { AUTHORITIES } from 'app/config/constants';
-import WorkGroupList from './entities/work-group/work-group-list';
 
 const loading = <div>loading ...</div>;
 
@@ -44,7 +43,6 @@ const AppRoutes = () => {
           }
         />
         <Route path="*" element={<PageNotFound />} />
-        <Route path="work-group" element={<WorkGroupList />} />
       </ErrorBoundaryRoutes>
     </div>
   );

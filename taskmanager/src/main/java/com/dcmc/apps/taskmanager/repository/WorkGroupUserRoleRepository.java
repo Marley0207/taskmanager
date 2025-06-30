@@ -62,4 +62,6 @@ public interface WorkGroupUserRoleRepository extends JpaRepository<WorkGroupUser
 
     List<WorkGroupUserRole> findAllByGroup_Id(Long groupId);
 
+    List<WorkGroupUserRole> findAllByUser_Login(String login);
+
 }

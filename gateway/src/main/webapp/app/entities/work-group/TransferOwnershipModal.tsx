@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { transferOwnership, leaveWorkGroup } from './work-group.api';
+import { transferOwnership } from './work-group.api';
 import { IWorkGroupMember } from './work-group.model';
 import './transfer-ownership-modal.scss';
 
@@ -38,12 +38,10 @@ const TransferOwnershipModal = ({
       setLoading(true);
       setError('');
 
-      // Transferir la propiedad
+      // Transferir la propiedad (el backend se encarga de convertir al owner actual en moderador)
       await transferOwnership(workGroupId, selectedMember);
 
-      // El owner actual sale del grupo después de transferir la propiedad
-      await leaveWorkGroup(workGroupId);
-
+      // No llamar a leaveWorkGroup - el owner actual permanece en el grupo como moderador
       onOwnershipTransferred();
       onClose();
     } catch (err: any) {
@@ -109,8 +107,9 @@ const TransferOwnershipModal = ({
               <strong>¡Atención!</strong> Al transferir la propiedad del grupo:
               <ul>
                 <li>El miembro seleccionado se convertirá en el nuevo propietario</li>
-                <li>Perderás todos los privilegios de propietario</li>
-                <li>Saldrás automáticamente del grupo</li>
+                <li>Tu rol cambiará de OWNER a MODERADOR</li>
+                <li>Permanecerás en el grupo con privilegios de moderador</li>
+                <li>Podrás salir del grupo más tarde si lo deseas</li>
                 <li>Esta acción no se puede deshacer</li>
               </ul>
             </div>
@@ -168,15 +167,15 @@ const TransferOwnershipModal = ({
                   <div className="confirmation-icon">🔒</div>
                   <div className="confirmation-text">
                     <strong>Confirmación Final</strong>
-                    <p>¿Estás seguro de que quieres transferir la propiedad del grupo y salir?</p>
-                    <p>Esta acción no se puede deshacer.</p>
+                    <p>¿Estás seguro de que quieres transferir la propiedad del grupo?</p>
+                    <p>Tu rol cambiará a moderador y permanecerás en el grupo.</p>
                   </div>
                   <div className="confirmation-actions">
                     <button className="cancel-btn" onClick={() => setShowConfirmation(false)} disabled={loading}>
                       Cancelar
                     </button>
                     <button className="transfer-btn" onClick={handleTransferOwnership} disabled={loading}>
-                      {loading ? 'Transferiendo...' : 'Sí, Transferir y Salir'}
+                      {loading ? 'Transferiendo...' : 'Sí, Transferir Propiedad'}
                     </button>
                   </div>
                 </div>

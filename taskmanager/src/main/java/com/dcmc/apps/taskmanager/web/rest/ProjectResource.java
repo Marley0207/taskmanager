@@ -162,6 +162,13 @@ public class ProjectResource {
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }
 
+    @GetMapping("/by-work-group/{workGroupId}")
+    public ResponseEntity<List<ProjectDTO>> getProjectsByWorkGroup(@PathVariable Long workGroupId) {
+        List<ProjectDTO> result = projectService.findByWorkGroupId(workGroupId);
+        return ResponseEntity.ok().body(result);
+    }
+
+
     /**
      * {@code GET  /projects/:id} : get the "id" project.
      *
@@ -199,7 +206,7 @@ public class ProjectResource {
         return ResponseEntity.ok().body(result);
     }
 
-    @GetMapping("/projects/{id}/members")
+    @GetMapping("/{id}/members")
     public ResponseEntity<List<UserDTO>> getProjectMembers(@PathVariable Long id) {
         String currentUserLogin = SecurityUtils.getCurrentUserLogin()
             .orElseThrow(() -> new AccessDeniedException("Usuario no autenticado"));
