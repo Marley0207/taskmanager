@@ -1,9 +1,11 @@
 package com.dcmc.apps.taskmanager.service;
 
+import com.dcmc.apps.taskmanager.domain.Project;
 import com.dcmc.apps.taskmanager.domain.Task;
 import com.dcmc.apps.taskmanager.domain.User;
 import com.dcmc.apps.taskmanager.domain.enumeration.GroupRole;
 import com.dcmc.apps.taskmanager.domain.enumeration.TaskStatus;
+import com.dcmc.apps.taskmanager.repository.ProjectRepository;
 import com.dcmc.apps.taskmanager.repository.TaskRepository;
 import com.dcmc.apps.taskmanager.repository.UserRepository;
 import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
@@ -38,7 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TaskService {
 
     private static final Logger LOG = LoggerFactory.getLogger(TaskService.class);
-
+    private final ProjectRepository projectRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final TaskMapper taskMapper;
@@ -51,13 +53,15 @@ public class TaskService {
         , GroupSecurityService groupSecurityService
         ,UserRepository userRepository
         , WorkGroupUserRoleRepository workGroupUserRoleRepository
-        , UserMapper userMapper) {
+        , UserMapper userMapper
+        , ProjectRepository projectRepository) {
         this.taskRepository = taskRepository;
         this.taskMapper = taskMapper;
         this.groupSecurityService = groupSecurityService;
         this.userRepository = userRepository;
         this.workGroupUserRoleRepository = workGroupUserRoleRepository;
         this.userMapper = userMapper;
+        this.projectRepository = projectRepository;
     }
 
     /**
@@ -343,5 +347,26 @@ public class TaskService {
             }
         }
     }
+
+    public List<TaskDTO> findTasksByProjectIdForUser(Long projectId, String username) {
+        Optional<Project> projectOpt = projectRepository.findByIdWithMembers(projectId);
+
+        if (projectOpt.isEmpty()) {
+            throw new BadRequestAlertException("Proyecto no encontrado", "Project", "notfound");
+        }
+
+        Project project = projectOpt.get();
+
+        boolean isMember = project.getMembers().stream()
+            .anyMatch(user -> user.getLogin().equals(username));
+
+        if (!isMember) {
+            throw new AccessDeniedException("El usuario no pertenece a este proyecto");
+        }
+
+        List<Task> tasks = taskRepository.findByProjectId(projectId);
+        return tasks.stream().map(taskMapper::toDto).collect(Collectors.toList());
+    }
+
 
 }

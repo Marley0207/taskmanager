@@ -35,4 +35,7 @@ public interface TaskRepository extends TaskRepositoryWithBagRelationships, JpaR
         "WHERE t.archived = true AND wgur.user.login = :login")
     List<Task> findArchivedTasksByUserLogin(@Param("login") String login);
 
+    List<Task> findByProjectId(Long projectId);
+
+
 }

@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.Principal;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -178,4 +179,13 @@ public class TaskResource {
         TaskDTO result = taskService.assignUserToTask(taskId, userLogin);
         return ResponseEntity.ok().body(result);
     }
+
+    @GetMapping("/projects/{projectId}/tasks")
+    @PreAuthorize("hasAuthority('ROLE_USER')")
+    public ResponseEntity<List<TaskDTO>> getTasksByProject(@PathVariable Long projectId, Principal principal) {
+        LOG.debug("REST request to get Tasks by Project ID : {}", projectId);
+        List<TaskDTO> tasks = taskService.findTasksByProjectIdForUser(projectId, principal.getName());
+        return ResponseEntity.ok(tasks);
+    }
+
 }

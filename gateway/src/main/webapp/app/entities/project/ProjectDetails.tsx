@@ -12,6 +12,7 @@ import {
   faUserPlus,
   faCheck,
   faExclamationTriangle,
+  faList,
 } from '@fortawesome/free-solid-svg-icons';
 import { getProject, deleteProject, addMemberToProject, removeMemberFromProject, getProjectMembers } from './project.api';
 import { getAvailableWorkGroupMembers } from './project.api';
@@ -190,6 +191,11 @@ const ProjectDetails = () => {
             <FontAwesomeIcon icon={faArrowLeft} /> Volver
           </Link>
           <h1>{project.title}</h1>
+        </div>
+        <div className="project-details-actions">
+          <button onClick={() => navigate(`/tasks?projectId=${project.id}`)} className="btn btn-primary">
+            <FontAwesomeIcon icon={faList} /> Ver Tareas
+          </button>
         </div>
       </div>
 
