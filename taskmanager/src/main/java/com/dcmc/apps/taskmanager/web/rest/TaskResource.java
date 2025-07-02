@@ -128,17 +128,21 @@ public class TaskResource {
         return ResponseUtil.wrapOrNotFound(taskDTO);
     }
 
-    @DeleteMapping("/{groupId}/task/{id}")
+    @DeleteMapping("/projects/{projectId}/tasks/{taskId}")
+    @PreAuthorize("hasAuthority('ROLE_USER')")
     public ResponseEntity<Void> deleteTask(
-        @PathVariable("groupId") Long groupId,
-        @PathVariable("id") Long id
+        @PathVariable("projectId") Long projectId,
+        @PathVariable("taskId") Long taskId,
+        Principal principal
     ) {
-        LOG.debug("REST request to delete Task : {}", id);
-        taskService.delete(id);
+        LOG.debug("REST request to delete Task : {} del Proyecto {}", taskId, projectId);
+        taskService.delete(taskId, projectId, principal.getName());
         return ResponseEntity.noContent()
-            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, false, ENTITY_NAME, id.toString()))
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, false, ENTITY_NAME, taskId.toString()))
             .build();
     }
+
+
 
     @GetMapping("/{id}/view-assigned-users")
     public ResponseEntity<List<UserDTO>> getAssignedUsers(@PathVariable Long id) {

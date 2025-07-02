@@ -44,4 +44,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     // Java
     @Query("select t.workGroup.id from Task t where t.id = :taskId")
     Optional<Long> findGroupIdByTaskId(@Param("taskId") Long taskId);
+
+    List<Comment> findByTaskId(Long taskId);
+
 }

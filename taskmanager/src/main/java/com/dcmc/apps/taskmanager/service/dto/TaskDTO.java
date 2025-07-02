@@ -27,14 +27,25 @@ public class TaskDTO implements Serializable {
     private Long workGroupId;
 
     @NotNull
-    private Long projectId;
+    private ProjectDTO project;
 
     @JsonIgnore
     private Set<UserDTO> assignedTos;
 
     // ✅ NUEVOS CAMPOS
     private Long parentTaskId;
+
     private Set<Long> subTaskIds;
+
+    private Boolean archived;
+
+    public Boolean getArchived() {
+        return archived;
+    }
+
+    public void setArchived(Boolean archived) {
+        this.archived = archived;
+    }
 
     // Getters & Setters
 
@@ -86,12 +97,12 @@ public class TaskDTO implements Serializable {
         this.workGroupId = workGroupId;
     }
 
-    public Long getProjectId() {
-        return projectId;
+    public ProjectDTO getProject() {
+        return project;
     }
 
-    public void setProjectId(Long projectId) {
-        this.projectId = projectId;
+    public void setProject(ProjectDTO project) {
+        this.project = project;
     }
 
     public Set<UserDTO> getAssignedTos() {
@@ -127,7 +138,7 @@ public class TaskDTO implements Serializable {
             ", priority=" + priority +
             ", status=" + status +
             ", workGroupId=" + workGroupId +
-            ", projectId=" + projectId +
+            ", projectId=" + project +
             ", parentTaskId=" + parentTaskId +
             ", subTaskIds=" + subTaskIds +
             ", assignedTos=" + assignedTos +

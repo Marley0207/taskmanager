@@ -4,36 +4,79 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faSave, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { createTask } from './task.api';
 import { ITask, TaskPriority, TaskStatus, defaultValue } from './task.model';
+import { getProject } from '../project/project.api';
+
+// Definir un tipo para la creación de tarea
+interface ITaskCreatePayload {
+  title: string;
+  description: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+  project: { id: number };
+  workGroup: { id: number };
+  workGroupId: number;
+}
 
 const TaskCreate = () => {
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(window.location.search);
   const projectId = searchParams.get('projectId');
+  const workGroupIdFromUrl = searchParams.get('workGroupId');
 
-  const [task, setTask] = useState<ITask>({
-    ...defaultValue,
-    project: { id: projectId ? Number(projectId) : 0, title: '' },
+  // Estado local solo para los campos del formulario
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    priority: TaskPriority.NORMAL,
+    status: TaskStatus.NOT_STARTED,
   });
+  const [workGroupId, setWorkGroupId] = useState<string | null>(workGroupIdFromUrl);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    // Si no tenemos workGroupId pero sí projectId, obtenerlo del backend
+    if (!workGroupIdFromUrl && projectId) {
+      setLoading(true);
+      getProject(Number(projectId))
+        .then(res => {
+          if (res.data && res.data.workGroup && res.data.workGroup.id) {
+            setWorkGroupId(res.data.workGroup.id.toString());
+          }
+        })
+        .catch(() => setMessage('No se pudo obtener el grupo de trabajo del proyecto'))
+        .finally(() => setLoading(false));
+    }
+  }, [projectId, workGroupIdFromUrl]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setTask(prev => ({ ...prev, [name]: value }));
+    setForm(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!task.title || !task.priority || !task.status) {
+    if (!form.title || !form.priority || !form.status) {
       setMessage('Completa todos los campos obligatorios');
+      return;
+    }
+    if (!projectId || !workGroupId) {
+      setMessage('Faltan datos de proyecto o grupo de trabajo');
       return;
     }
     setSaving(true);
     setMessage(null);
+    const payload: ITaskCreatePayload = {
+      ...form,
+      project: { id: Number(projectId) },
+      workGroup: { id: Number(workGroupId) },
+      workGroupId: Number(workGroupId),
+    };
     try {
-      await createTask(task);
+      await createTask(payload);
       setMessage('Tarea creada exitosamente');
-      setTimeout(() => navigate(-1), 1200);
+      setTimeout(() => navigate(projectId ? `/tasks/${projectId}` : '/tasks'), 1200);
     } catch (err: any) {
       setMessage('Error al crear la tarea');
     } finally {
@@ -41,10 +84,14 @@ const TaskCreate = () => {
     }
   };
 
+  if (loading) {
+    return <div className="loading">Cargando datos del proyecto...</div>;
+  }
+
   return (
     <div style={{ padding: '20px', maxWidth: 700, margin: '0 auto' }}>
       <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center' }}>
-        <Link to={-1 as any} className="btn btn-secondary btn-sm" style={{ marginRight: 16 }}>
+        <Link to={projectId ? `/tasks/${projectId}` : '/tasks'} className="btn btn-secondary btn-sm" style={{ marginRight: 16 }}>
           <FontAwesomeIcon icon={faArrowLeft} /> Volver
         </Link>
         <h1 style={{ margin: 0 }}>Crear Nueva Tarea</h1>
@@ -58,15 +105,15 @@ const TaskCreate = () => {
       <form onSubmit={handleSubmit} style={{ background: 'white', borderRadius: 8, padding: 24, boxShadow: '0 2px 4px rgba(0,0,0,0.08)' }}>
         <div className="form-group" style={{ marginBottom: 16 }}>
           <label>Título</label>
-          <input type="text" name="title" className="form-control" value={task.title} onChange={handleChange} required maxLength={100} />
+          <input type="text" name="title" className="form-control" value={form.title} onChange={handleChange} required maxLength={100} />
         </div>
         <div className="form-group" style={{ marginBottom: 16 }}>
           <label>Descripción</label>
-          <textarea name="description" className="form-control" value={task.description} onChange={handleChange} rows={3} maxLength={500} />
+          <textarea name="description" className="form-control" value={form.description} onChange={handleChange} rows={3} maxLength={500} />
         </div>
         <div className="form-group" style={{ marginBottom: 16 }}>
           <label>Prioridad</label>
-          <select name="priority" className="form-control" value={task.priority} onChange={handleChange} required>
+          <select name="priority" className="form-control" value={form.priority} onChange={handleChange} required>
             {Object.values(TaskPriority).map(priority => (
               <option key={priority} value={priority}>
                 {priority}
@@ -76,7 +123,7 @@ const TaskCreate = () => {
         </div>
         <div className="form-group" style={{ marginBottom: 16 }}>
           <label>Estado</label>
-          <select name="status" className="form-control" value={task.status} onChange={handleChange} required>
+          <select name="status" className="form-control" value={form.status} onChange={handleChange} required>
             {Object.values(TaskStatus).map(status => (
               <option key={status} value={status}>
                 {status}
@@ -88,7 +135,12 @@ const TaskCreate = () => {
           <button type="submit" className="btn btn-primary" disabled={saving}>
             <FontAwesomeIcon icon={faSave} /> Guardar
           </button>
-          <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)} disabled={saving}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => navigate(projectId ? `/tasks/${projectId}` : '/tasks')}
+            disabled={saving}
+          >
             <FontAwesomeIcon icon={faTimes} /> Cancelar
           </button>
         </div>

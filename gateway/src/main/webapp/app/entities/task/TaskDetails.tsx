@@ -14,10 +14,23 @@ import {
   faExclamationTriangle,
   faPlus,
 } from '@fortawesome/free-solid-svg-icons';
-import { getTask, deleteTask, getAssignedUsers, addMemberToTask } from './task.api';
-import { ITask, TaskPriority, TaskStatus, ITaskMember } from './task.model';
+import {
+  getTask,
+  deleteTask,
+  getAssignedUsers,
+  addMemberToTask,
+  archiveTask as apiArchiveTask,
+  createComment,
+  getTaskComments,
+  updateComment,
+  patchComment,
+  deleteComment,
+} from './task.api';
+import { ITask, TaskPriority, TaskStatus, ITaskMember, IComment } from './task.model';
 import './task-list.scss';
 import { getAvailableWorkGroupMembers } from './task.api';
+import axios from 'axios';
+import Modal from 'react-modal';
 
 const TaskDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +43,21 @@ const TaskDetails = () => {
   const [availableMembers, setAvailableMembers] = useState<ITaskMember[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [adding, setAdding] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [comments, setComments] = useState<IComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
+  const [editingLoading, setEditingLoading] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null);
+  const [deletingLoading, setDeletingLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState<IComment | null>(null);
+  const [showDeleteTaskModal, setShowDeleteTaskModal] = useState(false);
+  const [deletingTask, setDeletingTask] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -39,9 +67,15 @@ const TaskDetails = () => {
   }, [id]);
 
   useEffect(() => {
-    if (task?.workGroup?.id) {
-      getAvailableWorkGroupMembers(task.workGroup.id).then(res => {
-        setAvailableMembers(res.data);
+    const groupId = task?.workGroup?.id || task?.workGroupId;
+    if (groupId) {
+      getAvailableWorkGroupMembers(groupId).then(res => {
+        const members = Array.isArray(res.data)
+          ? res.data.length > 0 && res.data[0].user
+            ? res.data.map((item: any) => item.user)
+            : res.data
+          : [];
+        setAvailableMembers(members);
       });
     }
   }, [task]);
@@ -90,14 +124,27 @@ const TaskDetails = () => {
   // Filtrar usuarios disponibles que no estén ya asignados
   const unassignedMembers = availableMembers.filter(m => !assignedUsers.some(a => a.id === m.id));
 
+  const openDeleteTaskModal = () => {
+    setShowDeleteTaskModal(true);
+  };
+
+  const closeDeleteTaskModal = () => {
+    setShowDeleteTaskModal(false);
+  };
+
   const handleDelete = async () => {
-    if (!id || !window.confirm('¿Estás seguro de que quieres eliminar esta tarea?')) return;
+    if (!id) return;
+    setDeletingTask(true);
+    setMessage(null);
     try {
-      await deleteTask(Number(id));
+      await deleteTask(task.workGroupId || task.workGroup.id, Number(id));
       setMessage({ type: 'success', text: 'Tarea eliminada exitosamente' });
       setTimeout(() => navigate(-1), 1000);
     } catch (err) {
       setMessage({ type: 'error', text: 'Error al eliminar la tarea' });
+    } finally {
+      setDeletingTask(false);
+      closeDeleteTaskModal();
     }
   };
 
@@ -163,6 +210,113 @@ const TaskDetails = () => {
     });
   };
 
+  // Determinar si la tarea está completada o archivada
+  const isTaskDoneOrArchived = task?.status === TaskStatus.DONE || task?.archived;
+
+  const handleArchive = async () => {
+    if (!task) return;
+    setArchiving(true);
+    setMessage(null);
+    try {
+      const response = await apiArchiveTask(task.id);
+      setTask(response.data);
+      setMessage({ type: 'success', text: 'Tarea archivada exitosamente' });
+      setShowArchiveModal(false);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Error al archivar la tarea' });
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  const loadComments = async () => {
+    setCommentsLoading(true);
+    try {
+      const response = await getTaskComments(task.id);
+      setComments(response.data);
+    } catch (err) {
+      setComments([]);
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (task?.id) {
+      loadComments();
+    }
+  }, [task?.id]);
+
+  const handleCreateComment = async () => {
+    if (!commentText.trim()) return;
+    setCommentLoading(true);
+    try {
+      await createComment({
+        content: commentText,
+        taskId: task.id,
+        authorId: undefined, // El backend lo asigna automáticamente
+      });
+      setCommentText('');
+      setMessage({ type: 'success', text: 'Comentario añadido exitosamente' });
+      await loadComments(); // Recargar comentarios
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Error al añadir el comentario' });
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
+  const startEditComment = (comment: IComment) => {
+    setEditingCommentId(comment.id);
+    setEditingCommentText(comment.content);
+  };
+
+  const handleUpdateComment = async () => {
+    if (!editingCommentId || !editingCommentText.trim()) return;
+    setEditingLoading(true);
+    try {
+      await patchComment(editingCommentId, {
+        id: editingCommentId,
+        content: editingCommentText,
+      });
+      setEditingCommentId(null);
+      setEditingCommentText('');
+      await loadComments();
+      setMessage({ type: 'success', text: 'Comentario editado exitosamente' });
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Error al editar el comentario' });
+    } finally {
+      setEditingLoading(false);
+    }
+  };
+
+  const openDeleteModal = (comment: IComment) => {
+    setCommentToDelete(comment);
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setCommentToDelete(null);
+  };
+
+  const handleDeleteComment = async () => {
+    if (!commentToDelete) return;
+    setDeletingCommentId(commentToDelete.id);
+    setDeletingLoading(true);
+    try {
+      await deleteComment(commentToDelete.id);
+      setMessage({ type: 'success', text: 'Comentario eliminado exitosamente' });
+      await loadComments();
+      closeDeleteModal();
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Error al eliminar el comentario' });
+    } finally {
+      setDeletingCommentId(null);
+      setDeletingLoading(false);
+    }
+  };
+
   if (loading) return <div className="loading">Cargando tarea...</div>;
   if (error) return <div className="error">{error}</div>;
   if (!task) return <div className="error">No se encontró la tarea</div>;
@@ -176,7 +330,11 @@ const TaskDetails = () => {
         </div>
       )}
       <div className="task-details-header" style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
-        <Link to={-1 as any} className="btn btn-secondary btn-sm" style={{ marginRight: 16 }}>
+        <Link
+          to={task && task.project && task.project.id ? `/tasks?projectId=${task.project.id}` : '/tasks'}
+          className="btn btn-secondary btn-sm"
+          style={{ marginRight: 16 }}
+        >
           <FontAwesomeIcon icon={faArrowLeft} /> Volver
         </Link>
         <h1 style={{ margin: 0 }}>{task.title}</h1>
@@ -184,9 +342,14 @@ const TaskDetails = () => {
           <Link to={`/tasks/${task.id}/edit`} className="btn btn-warning btn-sm">
             <FontAwesomeIcon icon={faEdit} /> Editar
           </Link>
-          <button onClick={handleDelete} className="btn btn-danger btn-sm">
+          <button onClick={openDeleteTaskModal} className="btn btn-danger btn-sm">
             <FontAwesomeIcon icon={faTrash} /> Eliminar
           </button>
+          {task.status === TaskStatus.DONE && !task.archived && (
+            <button onClick={() => setShowArchiveModal(true)} className="btn btn-secondary btn-sm">
+              <FontAwesomeIcon icon={faFlag} /> Archivar
+            </button>
+          )}
         </div>
       </div>
       <div
@@ -221,41 +384,293 @@ const TaskDetails = () => {
             )}
           </ul>
           {/* Añadir miembro */}
-          {unassignedMembers.length > 0 ? (
+          {isTaskDoneOrArchived ? (
+            <div style={{ marginTop: 12, color: 'gray' }}>No se pueden añadir miembros a una tarea completada o archivada.</div>
+          ) : unassignedMembers.length > 0 ? (
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
               <select
                 className="form-control"
                 style={{ width: 220 }}
                 value={selectedUser}
                 onChange={e => setSelectedUser(e.target.value)}
-                disabled={adding}
+                disabled={adding || isTaskDoneOrArchived}
               >
-                <option value="">Selecciona usuario a añadir</option>
+                <option value="">Selecciona usuario para añadir</option>
                 {unassignedMembers.map(member => (
                   <option key={member.id} value={member.login}>
                     {member.firstName && member.lastName ? `${member.firstName} ${member.lastName} (${member.login})` : member.login}
                   </option>
                 ))}
               </select>
-              <button className="btn btn-primary btn-sm" onClick={handleAddMember} disabled={!selectedUser || adding} type="button">
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleAddMember}
+                disabled={!selectedUser || adding || isTaskDoneOrArchived}
+                type="button"
+              >
                 <FontAwesomeIcon icon={faPlus} /> Añadir miembro
               </button>
             </div>
           ) : (
-            <div style={{ marginTop: 12, color: '#888', fontStyle: 'italic' }}>No hay miembros disponibles para asignar a esta tarea.</div>
+            <div style={{ marginTop: 12, color: 'gray' }}>No hay usuarios disponibles para añadir a esta tarea.</div>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
-          <div>
-            <strong>Archivada:</strong>{' '}
-            {task.archived ? (
-              <span style={{ color: '#dc3545', fontWeight: 600 }}>Sí</span>
-            ) : (
-              <span style={{ color: '#28a745', fontWeight: 600 }}>No</span>
-            )}
-          </div>
+        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <strong>Archivada:</strong>
+          {task.archived ? (
+            <span style={{ color: '#dc3545', fontWeight: 600 }}>Sí</span>
+          ) : (
+            <span style={{ color: '#28a745', fontWeight: 600 }}>No</span>
+          )}
+          {/* Botón de archivar eliminado para evitar duplicidad */}
         </div>
       </div>
+      {/* Modal de confirmación para archivar */}
+      <Modal
+        isOpen={showArchiveModal}
+        onRequestClose={() => setShowArchiveModal(false)}
+        contentLabel="Confirmar archivado"
+        ariaHideApp={false}
+        style={{
+          content: {
+            width: 320,
+            maxWidth: 320,
+            minWidth: 200,
+            height: 180,
+            minHeight: 140,
+            maxHeight: 220,
+            margin: 'auto',
+            padding: 10,
+            borderRadius: 10,
+            textAlign: 'center',
+            border: '1.5px solid #dc3545',
+            boxShadow: '0 2px 12px rgba(220,53,69,0.10)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'visible',
+          },
+          overlay: { backgroundColor: 'rgba(0,0,0,0.14)' },
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <FontAwesomeIcon icon={faExclamationTriangle} size="sm" color="#dc3545" />
+          <h4 style={{ color: '#dc3545', margin: 0, fontWeight: 700, fontSize: 18 }}>¿Archivar tarea?</h4>
+        </div>
+        <p style={{ fontSize: 13, color: '#333', marginBottom: 14, marginTop: 0, lineHeight: 1.2 }}>
+          ¿Estás seguro de que deseas archivar esta tarea? Esta acción no se puede deshacer.
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 0, width: '100%' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setShowArchiveModal(false)}
+            disabled={archiving}
+            style={{ minWidth: 70, fontWeight: 500, fontSize: 13 }}
+          >
+            Cancelar
+          </button>
+          <button
+            className="btn btn-danger btn-sm"
+            onClick={handleArchive}
+            disabled={archiving}
+            style={{ minWidth: 80, fontWeight: 500, fontSize: 13 }}
+          >
+            {archiving ? 'Archivando...' : 'Archivar'}
+          </button>
+        </div>
+      </Modal>
+      {/* Formulario para agregar comentario */}
+      <div style={{ marginTop: 32 }}>
+        <h3>Agregar comentario</h3>
+        <textarea
+          className="form-control"
+          rows={3}
+          value={commentText}
+          onChange={e => setCommentText(e.target.value)}
+          placeholder="Escribe tu comentario aquí..."
+          disabled={commentLoading}
+          style={{ marginBottom: 8, maxWidth: 500 }}
+        />
+        <br />
+        <button className="btn btn-primary btn-sm" onClick={handleCreateComment} disabled={commentLoading || !commentText.trim()}>
+          {commentLoading ? 'Enviando...' : 'Comentar'}
+        </button>
+      </div>
+      {/* Mostrar comentarios de la tarea */}
+      <div style={{ marginTop: 32 }}>
+        <h3>Comentarios</h3>
+        {commentsLoading ? (
+          <div>Cargando comentarios...</div>
+        ) : comments.length === 0 ? (
+          <div style={{ color: 'gray' }}>No hay comentarios para esta tarea.</div>
+        ) : (
+          <ul style={{ listStyle: 'none', padding: 0 }}>
+            {comments.map(comment => (
+              <li key={comment.id} style={{ marginBottom: 16, background: '#f8f9fa', borderRadius: 8, padding: 12 }}>
+                <div style={{ fontWeight: 500, marginBottom: 4 }}>
+                  {comment.author?.firstName} {comment.author?.lastName} ({comment.author?.login})
+                </div>
+                {editingCommentId === comment.id ? (
+                  <>
+                    <textarea
+                      className="form-control"
+                      rows={2}
+                      value={editingCommentText}
+                      onChange={e => setEditingCommentText(e.target.value)}
+                      disabled={editingLoading}
+                      style={{ marginBottom: 8 }}
+                    />
+                    <button
+                      className="btn btn-success btn-sm"
+                      onClick={handleUpdateComment}
+                      disabled={editingLoading || !editingCommentText.trim()}
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setEditingCommentId(null)}
+                      disabled={editingLoading}
+                      style={{ marginLeft: 8 }}
+                    >
+                      Cancelar
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ marginBottom: 4 }}>{comment.content}</div>
+                    <div style={{ fontSize: 12, color: '#888' }}>
+                      {comment.createdAt && new Date(comment.createdAt).toLocaleString('es-ES')}
+                    </div>
+                    <button
+                      className="btn btn-outline-primary btn-xs"
+                      style={{ marginTop: 4, marginRight: 8 }}
+                      onClick={() => startEditComment(comment)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      className="btn btn-outline-danger btn-xs"
+                      style={{ marginTop: 4 }}
+                      onClick={() => openDeleteModal(comment)}
+                      disabled={deletingLoading && deletingCommentId === comment.id}
+                    >
+                      Eliminar
+                    </button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {/* Modal de confirmación para eliminar comentario */}
+      <Modal
+        isOpen={showDeleteModal}
+        onRequestClose={closeDeleteModal}
+        contentLabel="Confirmar eliminación de comentario"
+        ariaHideApp={false}
+        style={{
+          content: {
+            width: 320,
+            height: 130,
+            maxWidth: 320,
+            minWidth: 200,
+            margin: 'auto',
+            padding: 10,
+            borderRadius: 10,
+            textAlign: 'center',
+            border: '1.5px solid #dc3545',
+            boxShadow: '0 2px 12px rgba(220,53,69,0.10)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'visible',
+          },
+          overlay: { backgroundColor: 'rgba(0,0,0,0.14)' },
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <FontAwesomeIcon icon={faExclamationTriangle} size="sm" color="#dc3545" />
+          <h4 style={{ color: '#dc3545', margin: 0, fontWeight: 700, fontSize: 18 }}>¿Eliminar comentario?</h4>
+        </div>
+        <p style={{ fontSize: 13, color: '#333', marginBottom: 14, marginTop: 0, lineHeight: 1.2 }}>
+          ¿Estás seguro de que deseas eliminar este comentario?
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 0, width: '100%' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={closeDeleteModal}
+            disabled={deletingLoading}
+            style={{ minWidth: 70, fontWeight: 500, fontSize: 13 }}
+          >
+            Cancelar
+          </button>
+          <button
+            className="btn btn-danger btn-sm"
+            onClick={handleDeleteComment}
+            disabled={deletingLoading}
+            style={{ minWidth: 80, fontWeight: 500, fontSize: 13 }}
+          >
+            {deletingLoading ? 'Eliminando...' : 'Eliminar'}
+          </button>
+        </div>
+      </Modal>
+      {/* Modal de confirmación para eliminar tarea */}
+      <Modal
+        isOpen={showDeleteTaskModal}
+        onRequestClose={closeDeleteTaskModal}
+        contentLabel="Confirmar eliminación de tarea"
+        ariaHideApp={false}
+        style={{
+          content: {
+            width: 320,
+            height: 130,
+            maxWidth: 320,
+            minWidth: 200,
+            margin: 'auto',
+            padding: 10,
+            borderRadius: 10,
+            textAlign: 'center',
+            border: '1.5px solid #dc3545',
+            boxShadow: '0 2px 12px rgba(220,53,69,0.10)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'visible',
+          },
+          overlay: { backgroundColor: 'rgba(0,0,0,0.14)' },
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <FontAwesomeIcon icon={faExclamationTriangle} size="sm" color="#dc3545" />
+          <h4 style={{ color: '#dc3545', margin: 0, fontWeight: 700, fontSize: 18 }}>¿Eliminar tarea?</h4>
+        </div>
+        <p style={{ fontSize: 13, color: '#333', marginBottom: 14, marginTop: 0, lineHeight: 1.2 }}>
+          ¿Estás seguro de que deseas eliminar esta tarea?
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 0, width: '100%' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={closeDeleteTaskModal}
+            disabled={deletingTask}
+            style={{ minWidth: 70, fontWeight: 500, fontSize: 13 }}
+          >
+            Cancelar
+          </button>
+          <button
+            className="btn btn-danger btn-sm"
+            onClick={handleDelete}
+            disabled={deletingTask}
+            style={{ minWidth: 80, fontWeight: 500, fontSize: 13 }}
+          >
+            {deletingTask ? 'Eliminando...' : 'Eliminar'}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -1,8 +1,11 @@
 package com.dcmc.apps.taskmanager.service;
 
 import com.dcmc.apps.taskmanager.domain.Comment;
+import com.dcmc.apps.taskmanager.domain.Project;
+import com.dcmc.apps.taskmanager.domain.Task;
 import com.dcmc.apps.taskmanager.domain.User;
 import com.dcmc.apps.taskmanager.repository.CommentRepository;
+import com.dcmc.apps.taskmanager.repository.TaskRepository;
 import com.dcmc.apps.taskmanager.repository.UserRepository;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.service.dto.CommentDTO;
@@ -13,6 +16,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import com.dcmc.apps.taskmanager.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -34,15 +39,18 @@ public class CommentService {
     private final GroupSecurityService groupSecurityService;
     private final CommentMapper commentMapper;
     private final UserRepository userRepository;
+    private final TaskRepository taskRepository;
 
     public CommentService(CommentRepository commentRepository
         , CommentMapper commentMapper
         ,GroupSecurityService groupSecurityService
-        , UserRepository userRepository) {
+        , UserRepository userRepository
+        , TaskRepository taskRepository) {
         this.commentRepository = commentRepository;
         this.commentMapper = commentMapper;
         this.groupSecurityService = groupSecurityService;
         this.userRepository = userRepository;
+        this.taskRepository = taskRepository;
     }
 
     /**
@@ -149,4 +157,25 @@ public class CommentService {
         LOG.debug("Request to delete Comment : {}", id);
         commentRepository.deleteById(id);
     }
+
+    public List<CommentDTO> findByTaskIdAuthorized(Long taskId, String username) {
+        Optional<Task> taskOpt = taskRepository.findByIdWithProjectAndMembers(taskId);
+        if (taskOpt.isEmpty()) {
+            throw new BadRequestAlertException("Tarea no encontrada", "Task", "notfound");
+        }
+
+        Task task = taskOpt.get();
+        Project project = task.getProject();
+
+        boolean isMember = project.getMembers().stream()
+            .anyMatch(user -> user.getLogin().equals(username));
+
+        if (!isMember) {
+            throw new AccessDeniedException("El usuario no tiene acceso a esta tarea");
+        }
+
+        List<Comment> comments = commentRepository.findByTaskId(taskId);
+        return comments.stream().map(commentMapper::toDto).toList();
+    }
+
 }

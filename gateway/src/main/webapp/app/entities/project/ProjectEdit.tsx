@@ -52,7 +52,11 @@ const ProjectEdit = () => {
         patch.members = project?.members || [];
       }
       await patchProject(parseInt(id, 10), patch);
-      navigate('/projects');
+      if (project && project.workGroup && project.workGroup.id) {
+        navigate(`/work-groups/${project.workGroup.id}/projects`);
+      } else {
+        navigate('/projects');
+      }
     } catch (err) {
       setError('Error al guardar los cambios');
     } finally {
@@ -97,7 +101,15 @@ const ProjectEdit = () => {
           <button type="submit" disabled={saving} className="btn btn-primary">
             {saving ? 'Guardando...' : 'Guardar Cambios'}
           </button>
-          <button type="button" onClick={() => navigate(`/projects`)} className="btn btn-secondary">
+          <button
+            type="button"
+            onClick={() =>
+              project && project.workGroup && project.workGroup.id
+                ? navigate(`/work-groups/${project.workGroup.id}/projects`)
+                : navigate('/projects')
+            }
+            className="btn btn-secondary"
+          >
             Cancelar
           </button>
         </div>

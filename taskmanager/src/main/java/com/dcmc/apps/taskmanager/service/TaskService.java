@@ -227,15 +227,32 @@ public class TaskService {
         return taskRepository.findOneWithEagerRelationships(id).map(taskMapper::toDto);
     }
 
-    /**
-     * Delete the task by id.
-     *
-     * @param id the id of the entity.
-     */
-    public void delete(Long id) {
-        LOG.debug("Request to delete Task : {}", id);
-        taskRepository.deleteById(id);
+    public void delete(Long taskId, Long projectId, String username) {
+        Optional<Task> taskOpt = taskRepository.findByIdWithProjectAndMembers(taskId);
+        if (taskOpt.isEmpty()) {
+            throw new BadRequestAlertException("Tarea no encontrada", "Task", "notfound");
+        }
+
+        Task task = taskOpt.get();
+
+        // Validar que la tarea pertenece al proyecto especificado
+        if (task.getProject() == null || !task.getProject().getId().equals(projectId)) {
+            throw new BadRequestAlertException("La tarea no pertenece al proyecto especificado", "Task", "projectmismatch");
+        }
+
+        // Validar si el usuario pertenece al proyecto
+        boolean isMember = task.getProject().getMembers().stream()
+            .anyMatch(member -> member.getLogin().equals(username));
+
+        if (!isMember) {
+            throw new AccessDeniedException("No tienes permiso para eliminar esta tarea.");
+        }
+
+        taskRepository.deleteById(taskId);
+        LOG.debug("Tarea {} eliminada correctamente por el usuario {}", taskId, username);
     }
+
+
 
     public TaskDTO archiveTask(Long taskId) {
         Task task = taskRepository.findById(taskId).orElseThrow();
@@ -314,7 +331,6 @@ public class TaskService {
 
         return taskMapper.toDto(taskRepository.save(task));
     }
-
 
     @Transactional(readOnly = true)
     public List<UserDTO> getAssignedUsers(Long taskId) {

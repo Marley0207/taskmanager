@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.Principal;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -171,4 +172,13 @@ public class CommentResource {
             .headers(HeaderUtil.createEntityDeletionAlert(applicationName, false, ENTITY_NAME, id.toString()))
             .build();
     }
+
+    @GetMapping("/tasks/{taskId}/comments")
+    @PreAuthorize("hasAuthority('ROLE_USER')")
+    public ResponseEntity<List<CommentDTO>> getCommentsByTask(@PathVariable Long taskId, Principal principal) {
+        LOG.debug("REST request to get Comments for Task : {}", taskId);
+        List<CommentDTO> comments = commentService.findByTaskIdAuthorized(taskId, principal.getName());
+        return ResponseEntity.ok(comments);
+    }
+
 }

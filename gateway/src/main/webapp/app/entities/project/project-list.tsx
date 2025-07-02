@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faEdit, faTrash, faEye, faUsers, faFilter, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { getProjects, getProjectsByWorkGroup, deleteProject } from './project.api';
@@ -8,8 +8,10 @@ import { getWorkGroups, getMyWorkGroups } from '../work-group/work-group.api';
 import { IWorkGroup } from '../work-group/work-group.model';
 import './project-list.scss';
 import { useAppSelector } from 'app/config/store';
+import Modal from 'react-modal';
 
 const ProjectList = () => {
+  const { id: workGroupId } = useParams();
   const [projectList, setProjectList] = useState<IProject[]>([]);
   const [workGroups, setWorkGroups] = useState<IWorkGroup[]>([]);
   const [selectedWorkGroup, setSelectedWorkGroup] = useState<number | null>(null);
@@ -21,28 +23,27 @@ const ProjectList = () => {
 
   useEffect(() => {
     let isMounted = true;
-
     const isAdmin = account && account.authorities && account.authorities.includes('ROLE_ADMIN');
-
     const loadInitialData = async () => {
       try {
-        const [projectsResponse, workGroupsResponse] = await Promise.all([getProjects(), isAdmin ? getWorkGroups() : getMyWorkGroups()]);
-
+        const [projectsResponse, workGroupsResponse] = await Promise.all([
+          workGroupId ? getProjectsByWorkGroup(Number(workGroupId)) : getProjects(),
+          isAdmin ? getWorkGroups() : getMyWorkGroups(),
+        ]);
         if (isMounted) {
           setProjectList(projectsResponse.data);
           setWorkGroups(workGroupsResponse.data);
+          if (workGroupId) setSelectedWorkGroup(Number(workGroupId));
         }
       } catch (error) {
         console.error('Error loading initial data:', error);
       }
     };
-
     loadInitialData();
-
     return () => {
       isMounted = false;
     };
-  }, [account]);
+  }, [account, workGroupId]);
 
   const loadProjects = async () => {
     setLoading(true);
@@ -141,35 +142,55 @@ const ProjectList = () => {
       <div className="project-list-header">
         <h2>Proyectos</h2>
         <div className="project-list-actions">
-          <div className="filter-section">
-            <FontAwesomeIcon icon={faFilter} className="filter-icon" />
-            <select value={selectedWorkGroup || ''} onChange={handleWorkGroupChange} className="work-group-filter">
-              <option value="">Todos los grupos de trabajo</option>
-              {workGroups.map(workGroup => (
-                <option key={`workgroup-${workGroup.id}`} value={workGroup.id}>
-                  {workGroup.name}
-                </option>
-              ))}
-            </select>
-            {selectedWorkGroup && (
-              <button onClick={clearFilter} className="btn btn-sm btn-outline-secondary clear-filter">
-                <FontAwesomeIcon icon={faTimes} />
-              </button>
-            )}
-          </div>
-          <Link to="create" className="btn btn-primary">
-            <FontAwesomeIcon icon={faPlus} /> Nuevo Proyecto
-          </Link>
+          {/* Solo mostrar el filtro si es admin */}
+          {account && account.authorities && account.authorities.includes('ROLE_ADMIN') && (
+            <div className="filter-section">
+              <FontAwesomeIcon icon={faFilter} className="filter-icon" />
+              <select value={selectedWorkGroup || ''} onChange={handleWorkGroupChange} className="work-group-filter">
+                <option value="">Todos los grupos de trabajo</option>
+                {workGroups.map(workGroup => (
+                  <option key={`workgroup-${workGroup.id}`} value={workGroup.id}>
+                    {workGroup.name}
+                  </option>
+                ))}
+              </select>
+              {selectedWorkGroup && (
+                <button onClick={clearFilter} className="btn btn-sm btn-outline-secondary clear-filter">
+                  <FontAwesomeIcon icon={faTimes} />
+                </button>
+              )}
+            </div>
+          )}
+          {account && account.authorities && account.authorities.includes('ROLE_ADMIN') ? (
+            <Link to="/projects/create" className="btn btn-primary">
+              <FontAwesomeIcon icon={faPlus} /> Nuevo Proyecto
+            </Link>
+          ) : (
+            <Link
+              to={selectedWorkGroup ? `/work-groups/${selectedWorkGroup}/projects/create` : '/projects/create'}
+              className="btn btn-primary"
+            >
+              <FontAwesomeIcon icon={faPlus} /> Nuevo Proyecto
+            </Link>
+          )}
         </div>
       </div>
 
-      {selectedWorkGroup && (
+      {account && account.authorities && account.authorities.includes('ROLE_ADMIN') && selectedWorkGroup && (
         <div className="active-filter">
           <FontAwesomeIcon icon={faFilter} />
           <span>
             Filtrando por: <strong>{getSelectedWorkGroupName()}</strong>
           </span>
           <span className="project-count">({filteredProjectList.length} proyectos)</span>
+        </div>
+      )}
+
+      {selectedWorkGroup && (
+        <div style={{ marginBottom: 16 }}>
+          <Link to={`/work-groups/${selectedWorkGroup}/details`} className="btn btn-outline-secondary" style={{ marginRight: 8 }}>
+            ← Volver al grupo de trabajo
+          </Link>
         </div>
       )}
 
@@ -186,9 +207,18 @@ const ProjectList = () => {
           {filteredProjectList.length === 0 ? (
             <div className="no-projects">
               <p>{selectedWorkGroup ? `No hay proyectos en el grupo "${getSelectedWorkGroupName()}"` : 'No hay proyectos disponibles.'}</p>
-              <Link to="create" className="btn btn-primary">
-                {selectedWorkGroup ? 'Crear proyecto en este grupo' : 'Crear primer proyecto'}
-              </Link>
+              {account && account.authorities && account.authorities.includes('ROLE_ADMIN') ? (
+                <Link to="/projects/create" className="btn btn-primary">
+                  {selectedWorkGroup ? 'Crear proyecto en este grupo' : 'Crear primer proyecto'}
+                </Link>
+              ) : (
+                <Link
+                  to={selectedWorkGroup ? `/work-groups/${selectedWorkGroup}/projects/create` : '/projects/create'}
+                  className="btn btn-primary"
+                >
+                  {selectedWorkGroup ? 'Crear proyecto en este grupo' : 'Crear primer proyecto'}
+                </Link>
+              )}
             </div>
           ) : (
             filteredProjectList.map(project => (
@@ -196,10 +226,10 @@ const ProjectList = () => {
                 <div className="project-card-header">
                   <h3>{project.title}</h3>
                   <div className="project-card-actions">
-                    <Link to={`${project.id}/details`} className="btn btn-sm btn-info">
+                    <Link to={`/projects/${project.id}/details`} className="btn btn-sm btn-info">
                       <FontAwesomeIcon icon={faEye} />
                     </Link>
-                    <Link to={`${project.id}/edit`} className="btn btn-sm btn-warning">
+                    <Link to={`/projects/${project.id}/edit`} className="btn btn-sm btn-warning">
                       <FontAwesomeIcon icon={faEdit} />
                     </Link>
                     <button onClick={() => handleDeleteClick(project.id)} className="btn btn-sm btn-danger">
@@ -230,24 +260,49 @@ const ProjectList = () => {
         </div>
       )}
 
-      {/* Modal de confirmación de eliminación */}
       {showDeleteModal && (
-        <div className="custom-modal-overlay">
-          <div className="custom-modal-content">
-            <div className="custom-modal-header">
-              <span className="custom-modal-icon">⚠️</span>
-              <h4>¿Estás seguro de que deseas eliminar este proyecto?</h4>
-            </div>
-            <div className="custom-modal-actions">
-              <button onClick={confirmDelete} className="btn btn-danger">
-                Eliminar
-              </button>
-              <button onClick={cancelDelete} className="btn btn-secondary">
-                Cancelar
-              </button>
-            </div>
+        <Modal
+          isOpen={showDeleteModal}
+          onRequestClose={cancelDelete}
+          contentLabel="Confirmar eliminación de proyecto"
+          ariaHideApp={false}
+          style={{
+            content: {
+              width: 320,
+              height: 130,
+              maxWidth: 320,
+              minWidth: 200,
+              margin: 'auto',
+              padding: 10,
+              borderRadius: 10,
+              textAlign: 'center',
+              border: '1.5px solid #dc3545',
+              boxShadow: '0 2px 12px rgba(220,53,69,0.10)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'visible',
+            },
+            overlay: { backgroundColor: 'rgba(0,0,0,0.14)' },
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <span style={{ color: '#dc3545', fontSize: 20, fontWeight: 700 }}>⚠️</span>
+            <h4 style={{ color: '#dc3545', margin: 0, fontWeight: 700, fontSize: 18 }}>¿Eliminar proyecto?</h4>
           </div>
-        </div>
+          <p style={{ fontSize: 13, color: '#333', marginBottom: 14, marginTop: 0, lineHeight: 1.2 }}>
+            ¿Estás seguro de que deseas eliminar este proyecto?
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 0, width: '100%' }}>
+            <button className="btn btn-secondary btn-sm" onClick={cancelDelete} style={{ minWidth: 70, fontWeight: 500, fontSize: 13 }}>
+              Cancelar
+            </button>
+            <button className="btn btn-danger btn-sm" onClick={confirmDelete} style={{ minWidth: 80, fontWeight: 500, fontSize: 13 }}>
+              Eliminar
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );

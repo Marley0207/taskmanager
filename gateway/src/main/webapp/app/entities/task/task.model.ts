@@ -12,6 +12,7 @@ export interface ITask {
     id: number;
     name: string;
   };
+  workGroupId?: number;
   assignedMembers?: ITaskMember[];
   comments?: IComment[];
   createdBy?: {

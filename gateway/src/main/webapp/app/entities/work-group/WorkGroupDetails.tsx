@@ -119,10 +119,16 @@ const WorkGroupDetails = () => {
   return (
     <div className="work-group-details">
       <div className="details-header">
-        <div className="header-content">
+        <div className="header-content" style={{ position: 'relative', maxWidth: '1200px', margin: '0 auto' }}>
           <div className="back-button" onClick={() => navigate('/work-groups')}>
             <span className="back-icon">←</span>
             <span className="back-text">Volver a Grupos</span>
+          </div>
+          <div style={{ position: 'absolute', top: '0', right: '0' }}>
+            <div className="back-button" onClick={() => navigate(`/work-groups/${id}/projects`)}>
+              <span className="back-icon">📁</span>
+              <span className="back-text">Ver Proyectos del Grupo</span>
+            </div>
           </div>
           <div className="group-info">
             <div className="group-icon">👥</div>

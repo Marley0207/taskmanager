@@ -13,11 +13,12 @@ export const getMyTasks = () => axios.get<ITask[]>(`${apiUrl}/my-tasks`);
 
 export const getTask = (id: number) => axios.get<ITask>(`${apiUrl}/${id}`);
 
-export const createTask = (entity: ITask) => axios.post<ITask>(apiUrl, entity);
+export const createTask = (entity: any) => axios.post<ITask>(apiUrl, entity);
 
 export const updateTask = (entity: ITask) => axios.put<ITask>(`${apiUrl}/${entity.id}`, entity);
 
-export const deleteTask = (id: number) => axios.delete(`${apiUrl}/${id}`);
+export const deleteTask = (projectId: number, taskId: number) =>
+  axios.delete(`/services/taskmanager/api/tasks/projects/${projectId}/tasks/${taskId}`);
 
 // Funciones para gestionar miembros asignados a la tarea
 export const getAssignedUsers = (taskId: number) => axios.get<ITaskMember[]>(`${apiUrl}/${taskId}/view-assigned-users`);
@@ -39,13 +40,21 @@ export const updateTaskMembers = (taskId: number, memberIds: number[]) =>
   );
 
 // Funciones para comentarios
-export const getTaskComments = (taskId: number) => axios.get<IComment[]>(`${apiUrl}/${taskId}/comments`);
+export const getTaskComments = (taskId: number) => axios.get<IComment[]>(`services/taskmanager/api/comments/tasks/${taskId}/comments`);
 
 export const addCommentToTask = (taskId: number, comment: IComment) => axios.post<IComment>(`${apiUrl}/${taskId}/comments`, comment);
 
-export const updateComment = (commentId: number, comment: IComment) => axios.put<IComment>(`${apiUrl}/comments/${commentId}`, comment);
+export const updateComment = (commentId: number, comment: IComment) =>
+  axios.put<IComment>(`services/taskmanager/api/comments/${commentId}`, comment);
 
-export const deleteComment = (commentId: number) => axios.delete(`${apiUrl}/comments/${commentId}`);
+export const deleteComment = (commentId: number) => axios.delete(`services/taskmanager/api/comments/${commentId}`);
+
+export const patchComment = (commentId: number, patch: Partial<IComment>) =>
+  axios.patch<IComment>(`services/taskmanager/api/comments/${commentId}`, patch, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
 
 // Función para obtener miembros disponibles del work group para asignar a la tarea
 export const getAvailableWorkGroupMembers = (workGroupId: number) =>
@@ -57,3 +66,7 @@ export const patchTask = (id: number, patch: Partial<ITask>) =>
       'Content-Type': 'application/json',
     },
   });
+
+export const archiveTask = (taskId: number) => axios.post<ITask>(`services/taskmanager/api/tasks/${taskId}/archive`);
+
+export const createComment = (comment: IComment) => axios.post<IComment>('services/taskmanager/api/comments', comment);

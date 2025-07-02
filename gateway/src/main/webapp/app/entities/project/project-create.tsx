@@ -8,10 +8,11 @@ import { IProject, defaultValue } from './project.model';
 import { IWorkGroup, IWorkGroupMember } from '../work-group/work-group.model';
 import './project-create.scss';
 import { useAppSelector } from 'app/config/store';
+import { TaskPriority, TaskStatus } from '../task/task.model';
 
 const ProjectCreate = () => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { id, workGroupId } = useParams<{ id?: string; workGroupId?: string }>();
   const isNew = !id;
 
   const [project, setProject] = useState<IProject>(defaultValue);
@@ -34,7 +35,7 @@ const ProjectCreate = () => {
           setWorkGroups(workGroupsResponse.data);
         }
 
-        if (!isNew && id) {
+        if (!isNew && id && !workGroupId) {
           setLoading(true);
           try {
             const projectResponse = await getProject(parseInt(id, 10));
@@ -48,6 +49,16 @@ const ProjectCreate = () => {
             setLoading(false);
           }
         }
+
+        if (isNew && workGroupId && workGroupsResponse.data.length > 0) {
+          const selectedWorkGroup = workGroupsResponse.data.find((wg: any) => wg.id === parseInt(workGroupId, 10));
+          if (selectedWorkGroup) {
+            setProject(prev => ({
+              ...prev,
+              workGroup: { id: selectedWorkGroup.id, name: selectedWorkGroup.name },
+            }));
+          }
+        }
       } catch (error) {
         console.error('Error loading work groups:', error);
       }
@@ -57,7 +68,7 @@ const ProjectCreate = () => {
     return () => {
       isMounted = false;
     };
-  }, [isNew, id]);
+  }, [isNew, id, workGroupId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -85,6 +96,25 @@ const ProjectCreate = () => {
     setSelectedMembers([]);
   }, [project.workGroup?.id]);
 
+  useEffect(() => {
+    if (
+      account &&
+      account.authorities &&
+      !account.authorities.includes('ROLE_ADMIN') &&
+      workGroupId &&
+      workGroups.length > 0 &&
+      (!project.workGroup || project.workGroup.id !== parseInt(workGroupId, 10))
+    ) {
+      const selectedWorkGroup = workGroups.find(wg => wg.id === parseInt(workGroupId, 10));
+      if (selectedWorkGroup) {
+        setProject(prev => ({
+          ...prev,
+          workGroup: { id: selectedWorkGroup.id, name: selectedWorkGroup.name },
+        }));
+      }
+    }
+  }, [account, workGroupId, workGroups, project.workGroup]);
+
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = event.target;
 
@@ -94,7 +124,7 @@ const ProjectCreate = () => {
       if (selectedWorkGroup) {
         setProject(prev => ({
           ...prev,
-          workGroup: { id: selectedWorkGroup.id, name: selectedWorkGroup.name, description: selectedWorkGroup.description },
+          workGroup: { id: selectedWorkGroup.id, name: selectedWorkGroup.name },
         }));
       }
     } else {
@@ -136,14 +166,27 @@ const ProjectCreate = () => {
         }),
       };
 
+      const groupId = workGroupId ? parseInt(workGroupId, 10) : entityToSave.workGroup && entityToSave.workGroup.id;
       if (isNew) {
         await createProject(entityToSave);
         setAlertMessage('Proyecto creado exitosamente');
-        setTimeout(() => navigate('/projects'), 1500);
+        setTimeout(() => {
+          if (groupId) {
+            navigate(`/work-groups/${groupId}/projects`);
+          } else {
+            navigate('/projects');
+          }
+        }, 1500);
       } else {
         await updateProject(entityToSave);
         setAlertMessage('Proyecto actualizado exitosamente');
-        setTimeout(() => navigate('/projects'), 1500);
+        setTimeout(() => {
+          if (groupId) {
+            navigate(`/work-groups/${groupId}/projects`);
+          } else {
+            navigate('/projects');
+          }
+        }, 1500);
       }
     } catch (error) {
       console.error('Error saving project:', error);
@@ -153,7 +196,12 @@ const ProjectCreate = () => {
   };
 
   const handleCancel = () => {
-    navigate('/projects');
+    const groupId = workGroupId ? parseInt(workGroupId, 10) : project && project.workGroup && project.workGroup.id;
+    if (groupId) {
+      navigate(`/work-groups/${groupId}/projects`);
+    } else {
+      navigate('/projects');
+    }
   };
 
   if (loading) {
@@ -199,24 +247,45 @@ const ProjectCreate = () => {
           />
         </div>
 
-        <div className="form-group">
-          <label htmlFor="workGroupId">Grupo de Trabajo *</label>
-          <select
-            id="workGroupId"
-            name="workGroupId"
-            value={project.workGroup?.id ?? ''}
-            onChange={handleInputChange}
-            required
-            className="form-control"
-          >
-            <option value="">Seleccione un grupo de trabajo</option>
-            {workGroups.map(wg => (
-              <option key={`wg-${wg.id}`} value={wg.id}>
-                {wg.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {account && account.authorities && account.authorities.includes('ROLE_ADMIN') ? (
+          <div className="form-group">
+            <label htmlFor="workGroupId">Grupo de Trabajo *</label>
+            <select
+              id="workGroupId"
+              name="workGroupId"
+              value={project.workGroup?.id || ''}
+              onChange={handleInputChange}
+              className="form-control"
+              required
+            >
+              <option value="">Seleccione un grupo de trabajo</option>
+              {workGroups.map(wg => (
+                <option key={wg.id} value={wg.id}>
+                  {wg.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="form-group">
+            <label htmlFor="workGroupId">Grupo de Trabajo *</label>
+            <select
+              id="workGroupId"
+              name="workGroupId"
+              value={project.workGroup?.id || ''}
+              onChange={handleInputChange}
+              className="form-control"
+              required
+              disabled
+            >
+              {(() => {
+                const groupId = workGroupId ? parseInt(workGroupId, 10) : parseInt(id, 10);
+                const group = workGroups.find(wg => wg.id === groupId);
+                return group ? <option value={group.id}>{group.name}</option> : <option value="">Cargando grupo...</option>;
+              })()}
+            </select>
+          </div>
+        )}
 
         <div className="form-group">
           <label>Miembros Asignados</label>
@@ -246,15 +315,17 @@ const ProjectCreate = () => {
               ) : (
                 <div className="no-members">No hay miembros disponibles en este grupo.</div>
               )
-            ) : (
+            ) : account && account.authorities && account.authorities.includes('ROLE_ADMIN') ? (
               <div className="no-members">Seleccione primero un grupo de trabajo para asignar miembros.</div>
+            ) : (
+              <div className="no-members">No hay miembros disponibles en este grupo.</div>
             )}
           </div>
           <small className="form-text text-muted">Seleccione los miembros del grupo que desea asignar al proyecto</small>
         </div>
 
         <div className="form-actions">
-          <button type="submit" disabled={saving} className="btn btn-primary">
+          <button type="submit" disabled={saving || !project.workGroup?.id} className="btn btn-primary">
             <FontAwesomeIcon icon={faSave} />
             {saving ? ' Guardando...' : ' Guardar'}
           </button>

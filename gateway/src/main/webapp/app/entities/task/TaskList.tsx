@@ -19,6 +19,7 @@ import {
 import { getTasksByProject, deleteTask, getAssignedUsers } from './task.api';
 import { ITask, TaskPriority, TaskStatus } from './task.model';
 import './task-list.scss';
+import Modal from 'react-modal';
 
 const TaskList = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -32,6 +33,9 @@ const TaskList = () => {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [assignedCount, setAssignedCount] = useState<{ [taskId: number]: number }>({});
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<{ id: number; projectId: number } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (finalProjectId) {
@@ -66,16 +70,29 @@ const TaskList = () => {
     }
   };
 
-  const handleDelete = async (taskId: number) => {
-    if (!window.confirm('¿Estás seguro de que quieres eliminar esta tarea?')) return;
+  const openDeleteModal = (id: number, projId: number) => {
+    setTaskToDelete({ id, projectId: projId });
+    setShowDeleteModal(true);
+  };
 
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setTaskToDelete(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!taskToDelete) return;
+    setDeleting(true);
     try {
-      await deleteTask(taskId);
+      await deleteTask(taskToDelete.projectId, taskToDelete.id);
       setMessage({ type: 'success', text: 'Tarea eliminada exitosamente' });
-      loadTasks(); // Recargar la lista
+      await loadTasks();
       setTimeout(() => setMessage(null), 3000);
+      closeDeleteModal();
     } catch (err) {
       setMessage({ type: 'error', text: 'Error al eliminar la tarea' });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -157,8 +174,8 @@ const TaskList = () => {
 
       <div className="task-list-header">
         <div className="task-list-title">
-          <Link to="/projects" className="btn btn-secondary btn-sm">
-            <FontAwesomeIcon icon={faArrowLeft} /> Volver a Proyectos
+          <Link to={`/projects/${finalProjectId}/details`} className="btn btn-secondary btn-sm">
+            <FontAwesomeIcon icon={faArrowLeft} /> Volver a Proyecto
           </Link>
           <h1>Tareas del Proyecto</h1>
         </div>
@@ -185,7 +202,7 @@ const TaskList = () => {
                     <Link to={`/tasks/${task.id}/edit`} className="btn btn-sm btn-warning" title="Editar">
                       <FontAwesomeIcon icon={faEdit} />
                     </Link>
-                    <button onClick={() => handleDelete(task.id)} className="btn btn-sm btn-danger" title="Eliminar">
+                    <button onClick={() => openDeleteModal(task.id, task.project.id)} className="btn btn-sm btn-danger" title="Eliminar">
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
                   </div>
@@ -235,6 +252,61 @@ const TaskList = () => {
           </div>
         )}
       </div>
+
+      {showDeleteModal && (
+        <Modal
+          isOpen={showDeleteModal}
+          onRequestClose={closeDeleteModal}
+          contentLabel="Confirmar eliminación de tarea"
+          ariaHideApp={false}
+          style={{
+            content: {
+              width: 320,
+              height: 130,
+              maxWidth: 320,
+              minWidth: 200,
+              margin: 'auto',
+              padding: 10,
+              borderRadius: 10,
+              textAlign: 'center',
+              border: '1.5px solid #dc3545',
+              boxShadow: '0 2px 12px rgba(220,53,69,0.10)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'visible',
+            },
+            overlay: { backgroundColor: 'rgba(0,0,0,0.14)' },
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <FontAwesomeIcon icon={faExclamationTriangle} size="sm" color="#dc3545" />
+            <h4 style={{ color: '#dc3545', margin: 0, fontWeight: 700, fontSize: 18 }}>¿Eliminar tarea?</h4>
+          </div>
+          <p style={{ fontSize: 13, color: '#333', marginBottom: 14, marginTop: 0, lineHeight: 1.2 }}>
+            ¿Estás seguro de que deseas eliminar esta tarea?
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 0, width: '100%' }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={closeDeleteModal}
+              disabled={deleting}
+              style={{ minWidth: 70, fontWeight: 500, fontSize: 13 }}
+            >
+              Cancelar
+            </button>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={confirmDelete}
+              disabled={deleting}
+              style={{ minWidth: 80, fontWeight: 500, fontSize: 13 }}
+            >
+              {deleting ? 'Eliminando...' : 'Eliminar'}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

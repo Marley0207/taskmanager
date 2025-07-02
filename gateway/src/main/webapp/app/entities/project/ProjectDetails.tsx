@@ -18,6 +18,7 @@ import { getProject, deleteProject, addMemberToProject, removeMemberFromProject,
 import { getAvailableWorkGroupMembers } from './project.api';
 import { IProject, IProjectMember } from './project.model';
 import { getWorkGroupMembers } from '../work-group/work-group.api';
+import Modal from 'react-modal';
 import './project-details.scss';
 
 const ProjectDetails = () => {
@@ -35,6 +36,11 @@ const ProjectDetails = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [groupMembers, setGroupMembers] = useState<IProjectMember[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // Estados para el modal de eliminación de miembro
+  const [showDeleteMemberModal, setShowDeleteMemberModal] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState<IProjectMember | null>(null);
+  const [deletingMember, setDeletingMember] = useState(false);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -129,12 +135,25 @@ const ProjectDetails = () => {
     }
   };
 
-  // Remover miembro
-  const handleRemoveMember = async (userId: number) => {
-    if (!id || !window.confirm('¿Estás seguro de que quieres remover este miembro del proyecto?')) return;
+  // Abrir modal de confirmación para remover miembro
+  const openDeleteMemberModal = (member: IProjectMember) => {
+    setMemberToDelete(member);
+    setShowDeleteMemberModal(true);
+  };
 
+  // Cerrar modal de eliminación de miembro
+  const closeDeleteMemberModal = () => {
+    setShowDeleteMemberModal(false);
+    setMemberToDelete(null);
+  };
+
+  // Remover miembro
+  const handleRemoveMember = async () => {
+    if (!id || !memberToDelete) return;
+
+    setDeletingMember(true);
     try {
-      await removeMemberFromProject(parseInt(id, 10), userId);
+      await removeMemberFromProject(parseInt(id, 10), memberToDelete.id);
 
       // Recargar datos
       await reloadData();
@@ -143,9 +162,14 @@ const ProjectDetails = () => {
 
       // Limpiar mensaje después de 3 segundos
       setTimeout(() => setMessage(null), 3000);
+
+      // Cerrar modal
+      closeDeleteMemberModal();
     } catch (err) {
       console.error('Error removing member:', err);
       setMessage({ type: 'error', text: 'Error al remover el miembro del proyecto' });
+    } finally {
+      setDeletingMember(false);
     }
   };
 
@@ -187,7 +211,10 @@ const ProjectDetails = () => {
       {/* Header */}
       <div className="project-details-header">
         <div className="project-details-title">
-          <Link to="/projects" className="btn btn-secondary btn-sm">
+          <Link
+            to={project && project.workGroup ? `/work-groups/${project.workGroup.id}/projects` : '/projects'}
+            className="btn btn-secondary btn-sm"
+          >
             <FontAwesomeIcon icon={faArrowLeft} /> Volver
           </Link>
           <h1>{project.title}</h1>
@@ -283,7 +310,7 @@ const ProjectDetails = () => {
                     </div>
                   </div>
                   <div className="member-actions">
-                    <button onClick={() => handleRemoveMember(member.id)} className="btn btn-danger btn-sm" title="Remover del proyecto">
+                    <button onClick={() => openDeleteMemberModal(member)} className="btn btn-danger btn-sm" title="Remover del proyecto">
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
                   </div>
@@ -353,6 +380,66 @@ const ProjectDetails = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de confirmación para eliminar miembro */}
+      {showDeleteMemberModal && (
+        <Modal
+          isOpen={showDeleteMemberModal}
+          onRequestClose={closeDeleteMemberModal}
+          contentLabel="Confirmar eliminación de miembro"
+          ariaHideApp={false}
+          style={{
+            content: {
+              width: 320,
+              height: 130,
+              maxWidth: 320,
+              minWidth: 200,
+              margin: 'auto',
+              padding: 10,
+              borderRadius: 10,
+              textAlign: 'center',
+              border: '1.5px solid #dc3545',
+              boxShadow: '0 2px 12px rgba(220,53,69,0.10)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'visible',
+            },
+            overlay: { backgroundColor: 'rgba(0,0,0,0.14)' },
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <span style={{ color: '#dc3545', fontSize: 20, fontWeight: 700 }}>⚠️</span>
+            <h4 style={{ color: '#dc3545', margin: 0, fontWeight: 700, fontSize: 18 }}>¿Eliminar miembro?</h4>
+          </div>
+          <p style={{ fontSize: 13, color: '#333', marginBottom: 14, marginTop: 0, lineHeight: 1.2 }}>
+            ¿Estás seguro de que deseas eliminar a{' '}
+            <strong>
+              {memberToDelete?.firstName} {memberToDelete?.lastName}
+            </strong>{' '}
+            del proyecto?
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 0, width: '100%' }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={closeDeleteMemberModal}
+              disabled={deletingMember}
+              style={{ minWidth: 70, fontWeight: 500, fontSize: 13 }}
+            >
+              Cancelar
+            </button>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={handleRemoveMember}
+              disabled={deletingMember}
+              style={{ minWidth: 80, fontWeight: 500, fontSize: 13 }}
+            >
+              {deletingMember ? 'Eliminando...' : 'Eliminar'}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );

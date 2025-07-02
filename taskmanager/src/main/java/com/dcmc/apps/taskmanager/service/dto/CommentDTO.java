@@ -13,10 +13,8 @@ public class CommentDTO implements Serializable {
     @NotNull
     private String content;
 
-    @JsonIgnore
     private Instant createdAt; // solo lectura
 
-   @JsonIgnore
     private UserDTO author; // solo lectura (login + id)
 
     @NotNull

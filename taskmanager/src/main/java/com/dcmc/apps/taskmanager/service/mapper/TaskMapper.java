@@ -10,19 +10,23 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@Mapper(componentModel = "spring", uses = UserMapper.class)
+@Mapper(componentModel = "spring", uses = {UserMapper.class, ProjectMapper.class})
 public interface TaskMapper extends EntityMapper<TaskDTO, Task> {
 
+    // De DTO a entidad
     @Mapping(target = "workGroup", source = "workGroupId")
-    @Mapping(target = "project", source = "projectId")
+    @Mapping(target = "project", source = "project") // Usa fromId para convertir id a Project
     @Mapping(target = "parentTask", source = "parentTaskId")
     @Mapping(target = "assignedTos", ignore = true)
+    @Mapping(target = "archived", source = "archived")
     Task toEntity(TaskDTO taskDTO);
 
+    // De entidad a DTO
     @Mapping(source = "workGroup.id", target = "workGroupId")
-    @Mapping(source = "project.id", target = "projectId")
+    @Mapping(source = "project", target = "project") // Mapea el objeto completo
     @Mapping(source = "parentTask.id", target = "parentTaskId")
     @Mapping(target = "subTaskIds", expression = "java(mapSubTaskIds(task))")
+    @Mapping(source = "archived", target = "archived")
     TaskDTO toDto(Task task);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
