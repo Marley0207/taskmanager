@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.Principal;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -212,6 +213,19 @@ public class ProjectResource {
             .orElseThrow(() -> new AccessDeniedException("Usuario no autenticado"));
         List<UserDTO> members = projectService.findMembersByProjectId(id, currentUserLogin);
         return ResponseEntity.ok(members);
+    }
+
+    @DeleteMapping("/{projectId}/members/{username}")
+    @PreAuthorize("hasAuthority('ROLE_USER')")
+    public ResponseEntity<Void> removeUserFromProject(
+        @PathVariable Long projectId,
+        @PathVariable String username,
+        Principal principal
+    ) {
+        projectService.removeUserFromProject(projectId, username, principal.getName());
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createAlert(applicationName, "Usuario removido del proyecto", username))
+            .build();
     }
 
 }

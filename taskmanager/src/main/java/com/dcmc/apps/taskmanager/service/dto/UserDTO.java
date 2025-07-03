@@ -2,6 +2,7 @@ package com.dcmc.apps.taskmanager.service.dto;
 
 import com.dcmc.apps.taskmanager.domain.User;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -15,14 +16,16 @@ public class UserDTO implements Serializable {
 
     private String login;
 
+    private List<SimpleGroupRoleDTO> workGroups;
+
     public UserDTO() {
         // Empty constructor needed for Jackson.
     }
 
     public UserDTO(User user) {
         this.id = user.getId();
-        // Customize it here if you need, or not, firstName/lastName/etc
         this.login = user.getLogin();
+        // Nota: workGroups no se mapea automáticamente aquí. Se debe setear manualmente si se necesita.
     }
 
     public String getId() {
@@ -41,34 +44,33 @@ public class UserDTO implements Serializable {
         this.login = login;
     }
 
+    public List<SimpleGroupRoleDTO> getWorkGroups() {
+        return workGroups;
+    }
+
+    public void setWorkGroups(List<SimpleGroupRoleDTO> workGroups) {
+        this.workGroups = workGroups;
+    }
+
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-
+        if (this == o) return true;
+        if (!(o instanceof UserDTO)) return false;
         UserDTO userDTO = (UserDTO) o;
-        if (userDTO.getId() == null || getId() == null) {
-            return false;
-        }
-
-        return Objects.equals(getId(), userDTO.getId()) && Objects.equals(getLogin(), userDTO.getLogin());
+        return Objects.equals(id, userDTO.id) &&
+            Objects.equals(login, userDTO.login);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId(), getLogin());
+        return Objects.hash(id, login);
     }
 
-    // prettier-ignore
     @Override
     public String toString() {
         return "UserDTO{" +
             "id='" + id + '\'' +
             ", login='" + login + '\'' +
-            "}";
+            '}';
     }
 }

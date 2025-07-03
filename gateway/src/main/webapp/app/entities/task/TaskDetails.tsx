@@ -13,6 +13,8 @@ import {
   faClock,
   faExclamationTriangle,
   faPlus,
+  faEnvelope,
+  faArrowRight,
 } from '@fortawesome/free-solid-svg-icons';
 import {
   getTask,
@@ -25,12 +27,14 @@ import {
   updateComment,
   patchComment,
   deleteComment,
+  removeMemberFromTask,
 } from './task.api';
 import { ITask, TaskPriority, TaskStatus, ITaskMember, IComment } from './task.model';
 import './task-list.scss';
 import { getAvailableWorkGroupMembers } from './task.api';
 import axios from 'axios';
 import Modal from 'react-modal';
+import SubtaskList from './SubtaskList';
 
 const TaskDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -58,6 +62,9 @@ const TaskDetails = () => {
   const [commentToDelete, setCommentToDelete] = useState<IComment | null>(null);
   const [showDeleteTaskModal, setShowDeleteTaskModal] = useState(false);
   const [deletingTask, setDeletingTask] = useState(false);
+  const [showDeleteMemberModal, setShowDeleteMemberModal] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState<ITaskMember | null>(null);
+  const [deletingMember, setDeletingMember] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -317,6 +324,35 @@ const TaskDetails = () => {
     }
   };
 
+  // Función para abrir el modal de confirmación
+  const openDeleteMemberModal = (member: ITaskMember) => {
+    setMemberToDelete(member);
+    setShowDeleteMemberModal(true);
+  };
+
+  // Función para cerrar el modal
+  const closeDeleteMemberModal = () => {
+    setShowDeleteMemberModal(false);
+    setMemberToDelete(null);
+  };
+
+  // Función para eliminar el miembro
+  const handleRemoveMember = async () => {
+    if (!task || !memberToDelete) return;
+    setDeletingMember(true);
+    setMessage(null);
+    try {
+      await removeMemberFromTask(task.project.id, task.id, memberToDelete.login);
+      setMessage({ type: 'success', text: 'Miembro eliminado exitosamente de la tarea' });
+      await loadAssignedUsers();
+      closeDeleteMemberModal();
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Error al eliminar el miembro de la tarea' });
+    } finally {
+      setDeletingMember(false);
+    }
+  };
+
   if (loading) return <div className="loading">Cargando tarea...</div>;
   if (error) return <div className="error">{error}</div>;
   if (!task) return <div className="error">No se encontró la tarea</div>;
@@ -372,17 +408,65 @@ const TaskDetails = () => {
           <strong>
             <FontAwesomeIcon icon={faUsers} /> Miembros asignados ({assignedUsers.length}):
           </strong>
-          <ul style={{ margin: 0, paddingLeft: 20 }}>
-            {assignedUsers.length > 0 ? (
-              assignedUsers.map(member => (
-                <li key={member.id}>
-                  <FontAwesomeIcon icon={faUser} /> {member.firstName} {member.lastName} ({member.login})
-                </li>
-              ))
-            ) : (
-              <li>No hay miembros asignados</li>
-            )}
-          </ul>
+          {assignedUsers.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+              {assignedUsers.map(member => (
+                <div
+                  key={member.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: '#f8f9fa',
+                    borderRadius: 8,
+                    padding: '10px 16px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                    gap: 14,
+                    minHeight: 48,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <FontAwesomeIcon icon={faUser} style={{ color: '#1976d2', fontSize: 18 }} />
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 15 }}>
+                        {member.firstName} {member.lastName}
+                      </div>
+                      <div style={{ color: '#888', fontSize: 13 }}>({member.login})</div>
+                      {member.email && (
+                        <div style={{ color: '#888', fontSize: 12 }}>
+                          <FontAwesomeIcon icon={faEnvelope} style={{ marginRight: 4 }} />
+                          {member.email}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {!isTaskDoneOrArchived && (
+                    <button
+                      className="btn btn-outline-danger btn-xs"
+                      style={{
+                        marginLeft: 'auto',
+                        padding: '2px 10px',
+                        fontSize: 14,
+                        borderRadius: 4,
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s',
+                      }}
+                      title="Eliminar de la tarea"
+                      onClick={() => openDeleteMemberModal(member)}
+                      disabled={deletingMember && memberToDelete?.id === member.id}
+                      onMouseOver={e => (e.currentTarget.style.background = '#ffeaea')}
+                      onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ color: '#888', fontStyle: 'italic', marginTop: 8 }}>No hay miembros asignados</div>
+          )}
           {/* Añadir miembro */}
           {isTaskDoneOrArchived ? (
             <div style={{ marginTop: 12, color: 'gray' }}>No se pueden añadir miembros a una tarea completada o archivada.</div>
@@ -422,7 +506,13 @@ const TaskDetails = () => {
           ) : (
             <span style={{ color: '#28a745', fontWeight: 600 }}>No</span>
           )}
-          {/* Botón de archivar eliminado para evitar duplicidad */}
+        </div>
+
+        {/* Sección de subtareas */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginTop: 8 }}>
+            <SubtaskList parentTaskId={task.id} projectId={task.project.id} />
+          </div>
         </div>
       </div>
       {/* Modal de confirmación para archivar */}
@@ -671,6 +761,65 @@ const TaskDetails = () => {
           </button>
         </div>
       </Modal>
+      {/* Modal de confirmación para eliminar miembro de la tarea */}
+      {showDeleteMemberModal && memberToDelete && (
+        <Modal
+          isOpen={showDeleteMemberModal}
+          onRequestClose={closeDeleteMemberModal}
+          contentLabel="Confirmar eliminación de miembro de la tarea"
+          ariaHideApp={false}
+          style={{
+            content: {
+              width: 320,
+              height: 130,
+              maxWidth: 320,
+              minWidth: 200,
+              margin: 'auto',
+              padding: 10,
+              borderRadius: 10,
+              textAlign: 'center',
+              border: '1.5px solid #dc3545',
+              boxShadow: '0 2px 12px rgba(220,53,69,0.10)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'visible',
+            },
+            overlay: { backgroundColor: 'rgba(0,0,0,0.14)' },
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <FontAwesomeIcon icon={faExclamationTriangle} size="sm" color="#dc3545" />
+            <h4 style={{ color: '#dc3545', margin: 0, fontWeight: 700, fontSize: 18 }}>¿Eliminar miembro?</h4>
+          </div>
+          <p style={{ fontSize: 13, color: '#333', marginBottom: 14, marginTop: 0, lineHeight: 1.2 }}>
+            ¿Estás seguro de que deseas eliminar a{' '}
+            <b>
+              {memberToDelete.firstName} {memberToDelete.lastName} ({memberToDelete.login})
+            </b>{' '}
+            de esta tarea?
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 0, width: '100%' }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={closeDeleteMemberModal}
+              disabled={deletingMember}
+              style={{ minWidth: 70, fontWeight: 500, fontSize: 13 }}
+            >
+              Cancelar
+            </button>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={handleRemoveMember}
+              disabled={deletingMember}
+              style={{ minWidth: 80, fontWeight: 500, fontSize: 13 }}
+            >
+              {deletingMember ? 'Eliminando...' : 'Eliminar'}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

@@ -25,7 +25,8 @@ export const getAssignedUsers = (taskId: number) => axios.get<ITaskMember[]>(`${
 
 export const addMemberToTask = (taskId: number, userLogin: string) => axios.put<ITask>(`${apiUrl}/${taskId}/assign-user/${userLogin}`);
 
-export const removeMemberFromTask = (taskId: number, userId: number) => axios.delete(`${apiUrl}/${taskId}/members/${userId}`);
+export const removeMemberFromTask = (projectId: number, taskId: number, username: string) =>
+  axios.delete(`/services/taskmanager/api/tasks/projects/${projectId}/tasks/${taskId}/members/${username}`);
 
 // Función para actualizar todos los miembros asignados de una tarea
 export const updateTaskMembers = (taskId: number, memberIds: number[]) =>
@@ -70,3 +71,24 @@ export const patchTask = (id: number, patch: Partial<ITask>) =>
 export const archiveTask = (taskId: number) => axios.post<ITask>(`services/taskmanager/api/tasks/${taskId}/archive`);
 
 export const createComment = (comment: IComment) => axios.post<IComment>('services/taskmanager/api/comments', comment);
+
+// Nuevos endpoints para tareas archivadas
+export const getArchivedTasksByProject = (projectId: number) =>
+  axios.get<ITask[]>(`services/taskmanager/api/tasks/archived/project/${projectId}`);
+
+export const deleteArchivedTask = (taskId: number) => axios.delete(`${apiUrl}/${taskId}/archived`);
+
+export const getMembersOfArchivedTask = (taskId: number) => axios.get(`/services/taskmanager/api/tasks/archived/${taskId}/members`);
+
+// Endpoints para subtareas
+export const getSubtasks = (parentTaskId: number) => axios.get<ITask[]>(`${apiUrl}/${parentTaskId}/subtasks`);
+
+export const getParentTask = (taskId: number) => axios.get<ITask>(`${apiUrl}/${taskId}/parent`);
+
+export const createSubTask = (parentTaskId: number, subTaskDTO: ITask) =>
+  axios.post<ITask>(`${apiUrl}/${parentTaskId}/subtasks`, subTaskDTO);
+
+export const moveTaskToSubtask = (taskId: number, parentTaskId: number) =>
+  axios.put<ITask>(`${apiUrl}/${taskId}/move-to-parent/${parentTaskId}`);
+
+export const removeFromParent = (taskId: number) => axios.put<ITask>(`${apiUrl}/${taskId}/remove-from-parent`);

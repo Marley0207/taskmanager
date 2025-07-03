@@ -153,7 +153,7 @@ const ProjectDetails = () => {
 
     setDeletingMember(true);
     try {
-      await removeMemberFromProject(parseInt(id, 10), memberToDelete.id);
+      await removeMemberFromProject(parseInt(id, 10), memberToDelete.login);
 
       // Recargar datos
       await reloadData();

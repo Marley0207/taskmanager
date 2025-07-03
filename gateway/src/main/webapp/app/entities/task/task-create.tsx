@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faSave, faTimes } from '@fortawesome/free-solid-svg-icons';
-import { createTask } from './task.api';
+import { createTask, createSubTask } from './task.api';
 import { ITask, TaskPriority, TaskStatus, defaultValue } from './task.model';
 import { getProject } from '../project/project.api';
 
@@ -22,6 +22,7 @@ const TaskCreate = () => {
   const searchParams = new URLSearchParams(window.location.search);
   const projectId = searchParams.get('projectId');
   const workGroupIdFromUrl = searchParams.get('workGroupId');
+  const parentTaskId = searchParams.get('parentTaskId');
 
   // Estado local solo para los campos del formulario
   const [form, setForm] = useState({
@@ -34,15 +35,21 @@ const TaskCreate = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [projectTitle, setProjectTitle] = useState('');
+  const [workGroupName, setWorkGroupName] = useState('');
 
   React.useEffect(() => {
     // Si no tenemos workGroupId pero sí projectId, obtenerlo del backend
-    if (!workGroupIdFromUrl && projectId) {
+    if (projectId) {
       setLoading(true);
       getProject(Number(projectId))
         .then(res => {
-          if (res.data && res.data.workGroup && res.data.workGroup.id) {
-            setWorkGroupId(res.data.workGroup.id.toString());
+          if (res.data) {
+            if (res.data.workGroup && res.data.workGroup.id) {
+              setWorkGroupId(res.data.workGroup.id.toString());
+              setWorkGroupName(res.data.workGroup.name || '');
+            }
+            setProjectTitle(res.data.title || '');
           }
         })
         .catch(() => setMessage('No se pudo obtener el grupo de trabajo del proyecto'))
@@ -67,18 +74,23 @@ const TaskCreate = () => {
     }
     setSaving(true);
     setMessage(null);
-    const payload: ITaskCreatePayload = {
+    const payload: ITask = {
       ...form,
-      project: { id: Number(projectId) },
-      workGroup: { id: Number(workGroupId) },
+      project: { id: Number(projectId), title: projectTitle },
+      workGroup: { id: Number(workGroupId), name: workGroupName },
       workGroupId: Number(workGroupId),
     };
     try {
-      await createTask(payload);
-      setMessage('Tarea creada exitosamente');
+      if (parentTaskId) {
+        await createSubTask(Number(parentTaskId), payload);
+        setMessage('Subtarea creada exitosamente');
+      } else {
+        await createTask(payload);
+        setMessage('Tarea creada exitosamente');
+      }
       setTimeout(() => navigate(projectId ? `/tasks/${projectId}` : '/tasks'), 1200);
     } catch (err: any) {
-      setMessage('Error al crear la tarea');
+      setMessage(parentTaskId ? 'Error al crear la subtarea' : 'Error al crear la tarea');
     } finally {
       setSaving(false);
     }
@@ -94,7 +106,7 @@ const TaskCreate = () => {
         <Link to={projectId ? `/tasks/${projectId}` : '/tasks'} className="btn btn-secondary btn-sm" style={{ marginRight: 16 }}>
           <FontAwesomeIcon icon={faArrowLeft} /> Volver
         </Link>
-        <h1 style={{ margin: 0 }}>Crear Nueva Tarea</h1>
+        <h1 style={{ margin: 0 }}>{parentTaskId ? 'Crear Nueva Subtarea' : 'Crear Nueva Tarea'}</h1>
       </div>
       {message && (
         <div className={`message ${message.includes('exitosamente') ? 'success' : 'error'}`} style={{ marginBottom: 16 }}>

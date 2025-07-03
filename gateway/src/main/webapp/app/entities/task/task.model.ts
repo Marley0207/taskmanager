@@ -7,6 +7,7 @@ export interface ITask {
   project: {
     id: number;
     title: string;
+    members?: { id: string; login: string }[];
   };
   workGroup: {
     id: number;
@@ -24,6 +25,8 @@ export interface ITask {
   createdAt?: string;
   updatedAt?: string;
   archived?: boolean;
+  parentTaskId?: number | null;
+  subTaskIds?: number[];
 }
 
 export interface IComment {

@@ -13,6 +13,8 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -162,9 +164,9 @@ public class TaskResource {
         return ResponseEntity.ok(tasks);
     }
 
-    @GetMapping("/archived/{groupId}")
-    public ResponseEntity<List<TaskDTO>> getArchivedTasks(@PathVariable Long groupId) {
-        List<TaskDTO> result = taskService.findArchivedTasksByGroup(groupId);
+    @GetMapping("/archived/project/{projectId}")
+    public ResponseEntity<List<TaskDTO>> getArchivedTasksByProject(@PathVariable Long projectId) {
+        List<TaskDTO> result = taskService.findArchivedTasksByProject(projectId);
         return ResponseEntity.ok().body(result);
     }
 
@@ -190,6 +192,56 @@ public class TaskResource {
         LOG.debug("REST request to get Tasks by Project ID : {}", projectId);
         List<TaskDTO> tasks = taskService.findTasksByProjectIdForUser(projectId, principal.getName());
         return ResponseEntity.ok(tasks);
+    }
+
+    @DeleteMapping("/projects/{projectId}/tasks/{taskId}/members/{username}")
+    @PreAuthorize("hasAuthority('ROLE_USER')")
+    public ResponseEntity<Void> removeUserFromTask(
+        @PathVariable Long projectId,
+        @PathVariable Long taskId,
+        @PathVariable String username,
+        Principal principal
+    ) {
+        taskService.removeUserFromTask(projectId, taskId, username, principal.getName());
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createAlert(applicationName, "Usuario removido de la tarea", username))
+            .build();
+    }
+
+    @GetMapping("/projects/{projectId}/archived-tasks")
+    public ResponseEntity<List<TaskDTO>> getArchivedTasksByProject(@PathVariable Long projectId, Principal principal) {
+        LOG.debug("REST request to get archived tasks for project {}", projectId);
+        List<TaskDTO> archivedTasks = taskService.findArchivedTasksByProject(projectId, principal.getName());
+        return ResponseEntity.ok(archivedTasks);
+    }
+
+    @GetMapping("/archived/{taskId}/members")
+    public ResponseEntity<Set<UserDTO>> getMembersOfArchivedTask(@PathVariable Long taskId) {
+        Set<UserDTO> members = taskService.findMembersOfArchivedTask(taskId);
+        return ResponseEntity.ok(members);
+    }
+
+    @GetMapping("/{parentTaskId}/subtasks")
+    public ResponseEntity<List<TaskDTO>> getSubtasks(@PathVariable Long parentTaskId) {
+        List<TaskDTO> result = taskService.getSubtasks(parentTaskId);
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/{parentTaskId}/subtasks")
+    public ResponseEntity<TaskDTO> createSubTask(
+        @PathVariable Long parentTaskId,
+        @RequestBody TaskDTO subTaskDTO
+    ) throws URISyntaxException {
+        TaskDTO result = taskService.createSubTask(parentTaskId, subTaskDTO);
+        return ResponseEntity
+            .created(new URI("/api/tasks/" + result.getId()))
+            .body(result);
+    }
+
+    @GetMapping("/tasks/{taskId}/parent")
+    public ResponseEntity<TaskDTO> getParentTask(@PathVariable Long taskId) {
+        Optional<TaskDTO> result = taskService.findParentTask(taskId);
+        return result.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
     }
 
 }

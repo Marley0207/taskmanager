@@ -1,9 +1,12 @@
 package com.dcmc.apps.taskmanager.service;
 
+import com.dcmc.apps.taskmanager.domain.Project;
 import com.dcmc.apps.taskmanager.domain.WorkGroupUserRole;
 import com.dcmc.apps.taskmanager.domain.enumeration.GroupRole;
+import com.dcmc.apps.taskmanager.repository.ProjectRepository;
 import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -11,9 +14,11 @@ import org.springframework.stereotype.Service;
 public class GroupSecurityService {
 
     private final WorkGroupUserRoleRepository workGroupUserRoleRepository;
+    private final ProjectRepository projectRepository;
 
-    public GroupSecurityService(WorkGroupUserRoleRepository workGroupRepository) {
+    public GroupSecurityService(WorkGroupUserRoleRepository workGroupRepository, ProjectRepository projectRepository) {
         this.workGroupUserRoleRepository = workGroupRepository;
+        this.projectRepository = projectRepository;
     }
 
     public GroupRole getUserRoleInGroup(Long groupId) {
@@ -53,4 +58,20 @@ public class GroupSecurityService {
         return getUserRoleInGroup(groupId) != null;
     }
 
+
+    public void checkUserInProject(Long projectId) {
+        String currentUserLogin = SecurityUtils.getCurrentUserLogin()
+            .orElseThrow(() -> new AccessDeniedException("Usuario no autenticado"));
+
+        Project project = projectRepository
+            .findById(projectId)
+            .orElseThrow(() -> new EntityNotFoundException("Proyecto no encontrado"));
+
+        boolean isMember = project.getMembers().stream()
+            .anyMatch(user -> currentUserLogin.equals(user.getLogin()));
+
+        if (!isMember) {
+            throw new AccessDeniedException("No tienes permiso para acceder a este proyecto");
+        }
+    }
 }

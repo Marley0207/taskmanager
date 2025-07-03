@@ -23,7 +23,7 @@ export const getProjectMembers = (id: number) => axios.get<IProjectMember[]>(`${
 export const addMemberToProject = (projectId: number, userLogin: string) =>
   axios.put<IProject>(`${apiUrl}/${projectId}/assign-user/${userLogin}`);
 
-export const removeMemberFromProject = (projectId: number, userId: number) => axios.delete(`${apiUrl}/${projectId}/members/${userId}`);
+export const removeMemberFromProject = (projectId: number, username: string) => axios.delete(`${apiUrl}/${projectId}/members/${username}`);
 
 // Función para obtener miembros disponibles del work group para asignar al proyecto
 export const getAvailableWorkGroupMembers = (workGroupId: number) =>

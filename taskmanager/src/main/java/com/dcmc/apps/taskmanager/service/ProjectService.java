@@ -215,5 +215,30 @@ public class ProjectService {
         return projectMapper.toDto(projects);
     }
 
+    @Transactional
+    public void removeUserFromProject(Long projectId, String usernameToRemove, String currentUsername) {
+        Project project = projectRepository.findByIdWithMembers(projectId)
+            .orElseThrow(() -> new EntityNotFoundException("Proyecto no encontrado"));
+
+        // Verificar que currentUser pertenece al proyecto
+        boolean isAuthorized = project.getMembers().stream()
+            .anyMatch(user -> user.getLogin().equals(currentUsername));
+        if (!isAuthorized) {
+            throw new AccessDeniedException("No tienes permiso para modificar este proyecto");
+        }
+
+        // Verificar que el usuario a eliminar pertenece al proyecto
+        Optional<User> userToRemoveOpt = project.getMembers().stream()
+            .filter(u -> u.getLogin().equals(usernameToRemove))
+            .findFirst();
+        if (userToRemoveOpt.isEmpty()) {
+            throw new BadRequestAlertException("El usuario no pertenece al proyecto", "Project", "usernotinproject");
+        }
+
+        // Eliminar y guardar
+        project.getMembers().remove(userToRemoveOpt.get());
+        projectRepository.save(project);
+    }
+
 
 }

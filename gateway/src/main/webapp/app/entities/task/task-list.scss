@@ -47,9 +47,47 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
     padding-bottom: 20px;
     border-bottom: 2px solid #e9ecef;
+  }
+
+  .task-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e9ecef;
+
+    .tab-button {
+      padding: 12px 24px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      font-size: 1rem;
+      font-weight: 500;
+      color: #6c757d;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      &:hover {
+        color: #495057;
+        background-color: #f8f9fa;
+      }
+
+      &.active {
+        color: #007bff;
+        border-bottom-color: #007bff;
+        background-color: #f8f9fa;
+      }
+
+      svg {
+        width: 14px;
+      }
+    }
+  }
 
     .task-list-title {
       display: flex;
@@ -215,6 +253,48 @@
           }
         }
       }
+
+      // Estilos específicos para tareas archivadas
+      &.archived {
+        border-left-color: #6c757d;
+        background-color: #f8f9fa;
+        opacity: 0.8;
+
+        &:hover {
+          opacity: 1;
+        }
+
+        .task-title {
+          .archived-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background-color: #6c757d;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            margin-top: 5px;
+
+            svg {
+              width: 10px;
+            }
+          }
+        }
+
+        .task-actions {
+          .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+            
+            &:hover {
+              background-color: #c82333;
+              border-color: #bd2130;
+            }
+          }
+        }
+      }
     }
 
     .no-tasks {
@@ -266,7 +346,7 @@
     border-radius: 6px;
     padding: 20px;
   }
-}
+
 
 // Responsive design
 @media (max-width: 768px) {

@@ -40,6 +40,10 @@ public interface TaskRepository extends TaskRepositoryWithBagRelationships, JpaR
     @Query("SELECT t FROM Task t LEFT JOIN FETCH t.project p LEFT JOIN FETCH p.members WHERE t.id = :taskId")
     Optional<Task> findByIdWithProjectAndMembers(@Param("taskId") Long taskId);
 
+    List<Task> findByProjectIdAndArchivedTrue(Long projectId);
+
+    List<Task> findByParentTask_Id(Long parentTaskId);
+
 
 
 }
