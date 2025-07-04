@@ -48,6 +48,10 @@ public class Project implements Serializable {
     @JsonIgnoreProperties(value = { "projects", "tasks", "users" }, allowSetters = true)
     private WorkGroup workGroup;
 
+    @NotNull
+    @Column(name = "deleted", nullable = false)
+    private Boolean deleted = false;
+
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
     public Long getId() {
@@ -156,6 +160,19 @@ public class Project implements Serializable {
         this.setWorkGroup(workGroup);
         return this;
     }
+    public Boolean getDeleted() {
+        return this.deleted;
+    }
+
+    public Project deleted(Boolean deleted) {
+        this.setDeleted(deleted);
+        return this;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
+    }
+
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
 
@@ -183,6 +200,8 @@ public class Project implements Serializable {
             "id=" + getId() +
             ", title='" + getTitle() + "'" +
             ", description='" + getDescription() + "'" +
+            ", deleted=" + getDeleted() +
             "}";
     }
+
 }

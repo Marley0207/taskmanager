@@ -89,38 +89,30 @@ public class TaskService {
         task.setCreateTime(now);
         task.setUpdateTime(now);
         task.setArchived(false);
+        task.setDeleted(false); // 👈 tarea activa al crear
         task.getAssignedTos().add(currentUser);
 
-        // Guardar tarea principal primero para obtener ID (importante si luego la usaremos como parentTask)
         task = taskRepository.save(task);
 
-        // Si hay IDs de subtareas, buscarlas y asignarlas
+        // Subtareas
         if (taskDTO.getSubTaskIds() != null && !taskDTO.getSubTaskIds().isEmpty()) {
             for (Long subTaskId : taskDTO.getSubTaskIds()) {
                 Task subTask = taskRepository.findById(subTaskId)
                     .orElseThrow(() -> new EntityNotFoundException("Subtarea no encontrada con id " + subTaskId));
 
-                // Verificación extra: evitar ciclos o referencias inválidas
                 if (Objects.equals(subTask.getId(), task.getId())) {
                     throw new BadRequestAlertException("Una tarea no puede ser subtarea de sí misma", "Task", "invalidsubtask");
                 }
 
-                // Actualizar propiedades de la subtarea
                 subTask.setParentTask(task);
                 subTask.setWorkGroup(task.getWorkGroup());
                 subTask.setProject(task.getProject());
                 subTask.setUpdateTime(now);
-
-                // Importante: guardar la subtarea actualizada
                 taskRepository.save(subTask);
             }
         }
-
-        // Finalmente, devolver la tarea principal actualizada
         return taskMapper.toDto(task);
     }
-
-
 
     /**
      * Update a task.
@@ -132,8 +124,8 @@ public class TaskService {
         Task existingTask = taskRepository.findById(taskDTO.getId())
             .orElseThrow(() -> new EntityNotFoundException("Tarea no encontrada"));
 
-        if (existingTask.getArchived()) {
-            throw new BadRequestAlertException("No se puede editar una tarea archivada", "Task", "archived");
+        if (existingTask.getArchived() || Boolean.TRUE.equals(existingTask.getDeleted())) {
+            throw new BadRequestAlertException("No se puede editar una tarea archivada o eliminada", "Task", "archived_or_deleted");
         }
 
         LOG.debug("Request to update Task : {}", taskDTO);
@@ -141,15 +133,14 @@ public class TaskService {
         Instant now = Instant.now();
         task.setUpdateTime(now);
 
-        // Guardar tarea principal
         task = taskRepository.save(task);
 
-        // Actualizar subtareas (similar a save)
         if (task.getSubTasks() != null && !task.getSubTasks().isEmpty()) {
             for (Task subTask : task.getSubTasks()) {
-                if (subTask.getArchived() != null && subTask.getArchived()) {
-                    throw new BadRequestAlertException("No se puede editar una subtarea archivada", "Task", "archived");
+                if (Boolean.TRUE.equals(subTask.getArchived()) || Boolean.TRUE.equals(subTask.getDeleted())) {
+                    throw new BadRequestAlertException("No se puede editar una subtarea archivada o eliminada", "Task", "archived_or_deleted");
                 }
+
                 subTask.setParentTask(task);
                 subTask.setWorkGroup(task.getWorkGroup());
                 subTask.setProject(task.getProject());
@@ -170,18 +161,16 @@ public class TaskService {
     public Optional<TaskDTO> partialUpdate(TaskDTO taskDTO) {
         return taskRepository.findById(taskDTO.getId())
             .map(existingTask -> {
-                if (existingTask.getArchived()) {
-                    throw new BadRequestAlertException("No se puede editar una tarea archivada", "Task", "archived");
+                if (Boolean.TRUE.equals(existingTask.getArchived()) || Boolean.TRUE.equals(existingTask.getDeleted())) {
+                    throw new BadRequestAlertException("No se puede editar una tarea archivada o eliminada", "Task", "archived_or_deleted");
                 }
 
-                // Aplica los cambios simples del DTO
                 taskMapper.partialUpdate(existingTask, taskDTO);
 
-                // Lógica personalizada para subtareas
                 if (taskDTO.getSubTaskIds() != null) {
                     Set<Task> subTaskEntities = taskDTO.getSubTaskIds().stream()
                         .map(taskMapper::fromIdTask)
-                        .peek(subTask -> subTask.setParentTask(existingTask)) // Asigna correctamente la relación
+                        .peek(subTask -> subTask.setParentTask(existingTask))
                         .collect(Collectors.toSet());
 
                     existingTask.setSubTasks(subTaskEntities);
@@ -193,7 +182,6 @@ public class TaskService {
             .map(taskMapper::toDto);
     }
 
-
     /**
      * Get all the tasks.
      *
@@ -203,7 +191,7 @@ public class TaskService {
     @Transactional(readOnly = true)
     public Page<TaskDTO> findAll(Pageable pageable) {
         LOG.debug("Request to get all Tasks");
-        return taskRepository.findAll(pageable).map(taskMapper::toDto);
+        return taskRepository.findAllByDeletedFalse(pageable).map(taskMapper::toDto);
     }
 
     /**
@@ -212,7 +200,7 @@ public class TaskService {
      * @return the list of entities.
      */
     public Page<TaskDTO> findAllWithEagerRelationships(Pageable pageable) {
-        return taskRepository.findAllWithEagerRelationships(pageable).map(taskMapper::toDto);
+        return taskRepository.findAllWithEagerRelationshipsByDeletedFalse(pageable).map(taskMapper::toDto);
     }
 
     /**
@@ -224,9 +212,12 @@ public class TaskService {
     @Transactional(readOnly = true)
     public Optional<TaskDTO> findOne(Long id) {
         LOG.debug("Request to get Task : {}", id);
-        return taskRepository.findOneWithEagerRelationships(id).map(taskMapper::toDto);
+        return taskRepository.findOneWithEagerRelationships(id)
+            .filter(task -> !Boolean.TRUE.equals(task.getDeleted()))
+            .map(taskMapper::toDto);
     }
 
+    @Transactional
     public void delete(Long taskId, Long projectId, String username) {
         Optional<Task> taskOpt = taskRepository.findByIdWithProjectAndMembers(taskId);
         if (taskOpt.isEmpty()) {
@@ -235,24 +226,25 @@ public class TaskService {
 
         Task task = taskOpt.get();
 
-        // Validar que la tarea pertenece al proyecto especificado
+        if (task.getDeleted()) {
+            throw new BadRequestAlertException("La tarea ya fue eliminada", "Task", "alreadydeleted");
+        }
+
         if (task.getProject() == null || !task.getProject().getId().equals(projectId)) {
             throw new BadRequestAlertException("La tarea no pertenece al proyecto especificado", "Task", "projectmismatch");
         }
 
-        // Validar si el usuario pertenece al proyecto
         boolean isMember = task.getProject().getMembers().stream()
             .anyMatch(member -> member.getLogin().equals(username));
-
         if (!isMember) {
             throw new AccessDeniedException("No tienes permiso para eliminar esta tarea.");
         }
 
-        taskRepository.deleteById(taskId);
-        LOG.debug("Tarea {} eliminada correctamente por el usuario {}", taskId, username);
+        task.setDeleted(true);
+        task.setUpdateTime(Instant.now());
+        taskRepository.save(task);
+        LOG.debug("Tarea {} marcada como eliminada por el usuario {}", taskId, username);
     }
-
-
 
     public TaskDTO archiveTask(Long taskId) {
         Task task = taskRepository.findById(taskId).orElseThrow();
@@ -272,21 +264,17 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public List<TaskDTO> findArchivedTasksByProject(Long projectId) {
-        // Validar que el proyecto existe
         Project project = projectRepository
             .findById(projectId)
             .orElseThrow(() -> new EntityNotFoundException("El proyecto no existe"));
 
-        // Delega seguridad al servicio de seguridad del grupo (opcional si ya tienes checkUserInProject)
         groupSecurityService.checkUserInProject(projectId);
 
-        // Obtener y retornar tareas archivadas asociadas al proyecto
-        return taskRepository.findByProjectIdAndArchivedTrue(projectId)
+        return taskRepository.findByProjectIdAndArchivedTrueAndDeletedFalse(projectId)
             .stream()
             .map(taskMapper::toDto)
             .toList();
     }
-
 
     @Transactional
     public void deleteArchivedTask(Long taskId) {
@@ -297,15 +285,19 @@ public class TaskService {
             throw new BadRequestAlertException("Solo se pueden eliminar tareas archivadas", "Task", "notarchived");
         }
 
-        // Validar que el usuario actual sea OWNER o MODERADOR del grupo de la tarea
+        if (task.getDeleted()) {
+            throw new BadRequestAlertException("La tarea ya fue eliminada", "Task", "alreadydeleted");
+        }
+
         Long groupId = task.getWorkGroup().getId();
         if (!groupSecurityService.isModeratorOrOwner(groupId)) {
             throw new AccessDeniedException("Solo OWNER o MODERADOR puede eliminar tareas archivadas.");
         }
 
-        taskRepository.delete(task);
+        task.setDeleted(true);
+        task.setUpdateTime(Instant.now());
+        taskRepository.save(task);
     }
-
 
     @Transactional(readOnly = true)
     public List<TaskDTO> findArchivedTasksForCurrentUser() {
@@ -314,10 +306,15 @@ public class TaskService {
         return taskMapper.toDto(archivedTasks);
     }
 
+
     @Transactional
     public TaskDTO assignUserToTask(Long taskId, String userLogin) {
         Task task = taskRepository.findById(taskId)
             .orElseThrow(() -> new EntityNotFoundException("Tarea no encontrada"));
+
+        if (Boolean.TRUE.equals(task.getDeleted())) {
+            throw new BadRequestAlertException("No se puede modificar una tarea eliminada", "Task", "deleted");
+        }
 
         if (task.getArchived()) {
             throw new BadRequestAlertException("No se puede modificar una tarea archivada", "Task", "archived");
@@ -327,24 +324,29 @@ public class TaskService {
             throw new BadRequestAlertException("No se puede asignar usuarios a una tarea completada (DONE)", "Task", "invalidstatus");
         }
 
-        // Verificar que el usuario está en el grupo de trabajo de la tarea
         boolean isMember = workGroupUserRoleRepository.existsByUser_LoginAndGroup_Id(userLogin, task.getWorkGroup().getId());
         if (!isMember) {
             throw new BadRequestAlertException("El usuario no pertenece al grupo de trabajo", "Task", "notingroup");
         }
 
-        // Buscar usuario y agregarlo a la lista de asignados
-        User user = userRepository.findOneByLogin(userLogin).orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
+        User user = userRepository.findOneByLogin(userLogin)
+            .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
+
         task.getAssignedTos().add(user);
         task.setUpdateTime(Instant.now());
 
         return taskMapper.toDto(taskRepository.save(task));
     }
 
+
     @Transactional(readOnly = true)
     public List<UserDTO> getAssignedUsers(Long taskId) {
         Task task = taskRepository.findById(taskId)
             .orElseThrow(() -> new EntityNotFoundException("Tarea no encontrada"));
+
+        if (Boolean.TRUE.equals(task.getDeleted())) {
+            throw new AccessDeniedException("No puedes acceder a una tarea eliminada");
+        }
 
         Long groupId = task.getWorkGroup().getId();
 
@@ -356,11 +358,11 @@ public class TaskService {
             throw new AccessDeniedException("No tienes acceso a los usuarios asignados de esta tarea.");
         }
 
-        // Mapear a UserDTO simple
         return task.getAssignedTos().stream()
             .map(userMapper::toDtoLogin)
             .collect(Collectors.toList());
     }
+
 
     private void archiveTaskRecursive(Task task) {
         task.setArchived(true);
@@ -389,7 +391,7 @@ public class TaskService {
             throw new AccessDeniedException("El usuario no pertenece a este proyecto");
         }
 
-        List<Task> tasks = taskRepository.findByProjectId(projectId);
+        List<Task> tasks = taskRepository.findByProjectIdAndDeletedFalse(projectId);
         return tasks.stream().map(taskMapper::toDto).collect(Collectors.toList());
     }
 
@@ -398,19 +400,20 @@ public class TaskService {
         Task task = taskRepository.findByIdWithProjectAndMembers(taskId)
             .orElseThrow(() -> new EntityNotFoundException("Tarea no encontrada"));
 
-        // Verificar que la tarea pertenece al proyecto
+        if (Boolean.TRUE.equals(task.getDeleted())) {
+            throw new BadRequestAlertException("No se puede modificar una tarea eliminada", "Task", "deleted");
+        }
+
         if (!task.getProject().getId().equals(projectId)) {
             throw new BadRequestAlertException("La tarea no pertenece al proyecto indicado", "Task", "projectmismatch");
         }
 
-        // Validar si currentUser tiene permiso
         boolean isAuthorized = task.getProject().getMembers().stream()
             .anyMatch(u -> u.getLogin().equals(currentUsername));
         if (!isAuthorized) {
             throw new AccessDeniedException("No tienes permiso para modificar esta tarea");
         }
 
-        // Validar si el usuario pertenece a la tarea
         Optional<User> userToRemoveOpt = task.getAssignedTos().stream()
             .filter(u -> u.getLogin().equals(usernameToRemove))
             .findFirst();
@@ -420,30 +423,10 @@ public class TaskService {
         }
 
         task.getAssignedTos().remove(userToRemoveOpt.get());
+        task.setUpdateTime(Instant.now());
         taskRepository.save(task);
     }
 
-    @Transactional(readOnly = true)
-    public List<TaskDTO> findArchivedTasksByProject(Long projectId, String login) {
-        Optional<Project> optionalProject = projectRepository.findById(projectId);
-
-        if (optionalProject.isEmpty()) {
-            throw new EntityNotFoundException("El proyecto no existe");
-        }
-
-        Project project = optionalProject.get();
-
-        boolean isMember = project.getMembers().stream()
-            .anyMatch(user -> user.getLogin().equals(login));
-
-        if (!isMember) {
-            throw new AccessDeniedException("No tiene permisos para ver las tareas archivadas de este proyecto");
-        }
-
-        return taskRepository.findByProjectIdAndArchivedTrue(projectId).stream()
-            .map(taskMapper::toDto)
-            .toList();
-    }
 
     @Transactional(readOnly = true)
     public Set<UserDTO> findMembersOfArchivedTask(Long taskId) {
@@ -478,7 +461,7 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public List<TaskDTO> getSubtasks(Long parentTaskId) {
-        return taskRepository.findByParentTask_Id(parentTaskId).stream()
+        return taskRepository.findByParentTask_IdAndDeletedFalse(parentTaskId).stream()
             .map(taskMapper::toDto)
             .toList();
     }
@@ -488,6 +471,10 @@ public class TaskService {
         Task parent = taskRepository.findById(parentTaskId)
             .orElseThrow(() -> new EntityNotFoundException("Parent task not found"));
 
+        if (Boolean.TRUE.equals(parent.getDeleted())) {
+            throw new BadRequestAlertException("No se pueden crear subtareas para una tarea eliminada", "Task", "deleted");
+        }
+
         Task subTask = taskMapper.toEntity(subTaskDTO);
         subTask.setParentTask(parent);
         subTask.setProject(parent.getProject());
@@ -496,18 +483,44 @@ public class TaskService {
         subTask.setCreateTime(Instant.now());
         subTask.setUpdateTime(Instant.now());
         subTask.setArchived(false);
+        subTask.setDeleted(false);
 
         Task saved = taskRepository.save(subTask);
         return taskMapper.toDto(saved);
     }
 
+
     @Transactional(readOnly = true)
     public Optional<TaskDTO> findParentTask(Long taskId) {
         return taskRepository.findById(taskId)
+            .filter(task -> !Boolean.TRUE.equals(task.getDeleted()))
             .map(Task::getParentTask)
+            .filter(parent -> !Boolean.TRUE.equals(parent.getDeleted()))
             .map(taskMapper::toDto);
     }
 
+    @Transactional(readOnly = true)
+    public List<TaskDTO> findArchivedTasksByProject(Long projectId, String login) {
+        Optional<Project> optionalProject = projectRepository.findById(projectId);
 
+        if (optionalProject.isEmpty()) {
+            throw new EntityNotFoundException("El proyecto no existe");
+        }
+
+        Project project = optionalProject.get();
+
+        boolean isMember = project.getMembers().stream()
+            .anyMatch(user -> user.getLogin().equals(login));
+
+        if (!isMember) {
+            throw new AccessDeniedException("No tiene permisos para ver las tareas archivadas de este proyecto");
+        }
+
+        return taskRepository
+            .findByProjectIdAndArchivedTrueAndDeletedFalse(projectId) // <- filtro extra
+            .stream()
+            .map(taskMapper::toDto)
+            .toList();
+    }
 
 }

@@ -20,6 +20,9 @@ public class WorkGroupDTO implements Serializable {
 
     private String description;
 
+    @NotNull
+    private Boolean deleted;
+
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private Set<UserDTO> users = new HashSet<>();
 
@@ -45,6 +48,14 @@ public class WorkGroupDTO implements Serializable {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Boolean getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
     }
 
     public Set<UserDTO> getUsers() {
@@ -83,6 +94,7 @@ public class WorkGroupDTO implements Serializable {
             "id=" + getId() +
             ", name='" + getName() + "'" +
             ", description='" + getDescription() + "'" +
+            ", deleted=" + getDeleted() +
             ", users=" + getUsers() +
             "}";
     }

@@ -9,6 +9,7 @@ import TransferOwnershipModal from './TransferOwnershipModal';
 import LeaveGroupModal from './LeaveGroupModal';
 import './work-group-details.scss';
 import { IWorkGroup, IWorkGroupMember } from './work-group.model';
+import { softDeleteWorkGroup } from './work-group.api';
 
 const WorkGroupDetails = () => {
   const { id } = useParams();
@@ -23,6 +24,9 @@ const WorkGroupDetails = () => {
   const [isManageRolesModalOpen, setIsManageRolesModalOpen] = useState(false);
   const [isTransferOwnershipModalOpen, setIsTransferOwnershipModalOpen] = useState(false);
   const [isLeaveGroupModalOpen, setIsLeaveGroupModalOpen] = useState(false);
+  const [isDeleteGroupModalOpen, setIsDeleteGroupModalOpen] = useState(false);
+  const [deletingGroup, setDeletingGroup] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Obtener información del usuario actual desde Redux
   const account = useAppSelector(state => state.authentication.account);
@@ -103,6 +107,30 @@ const WorkGroupDetails = () => {
   const handleGroupLeft = () => {
     // Redirigir a la lista de grupos ya que el usuario salió del grupo
     navigate('/work-groups');
+  };
+
+  const openDeleteGroupModal = () => {
+    setIsDeleteGroupModalOpen(true);
+  };
+
+  const closeDeleteGroupModal = () => {
+    setIsDeleteGroupModalOpen(false);
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!id) return;
+    setDeletingGroup(true);
+    setMessage(null);
+    try {
+      await softDeleteWorkGroup(Number(id));
+      setMessage({ type: 'success', text: 'Grupo eliminado exitosamente' });
+      setTimeout(() => navigate('/work-groups'), 1000);
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Error al eliminar el grupo' });
+    } finally {
+      setDeletingGroup(false);
+      closeDeleteGroupModal();
+    }
   };
 
   if (loading) {
@@ -251,6 +279,12 @@ const WorkGroupDetails = () => {
                 <span className="btn-text">Salir del Grupo</span>
               </button>
             )}
+            {canTransferOwnership() && (
+              <button className="danger-btn" onClick={openDeleteGroupModal}>
+                <span className="btn-icon">🗑️</span>
+                <span className="btn-text">Eliminar Grupo</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -300,6 +334,34 @@ const WorkGroupDetails = () => {
         currentUserRole={currentUser?.role}
         onGroupLeft={handleGroupLeft}
       />
+
+      {/* Modal de confirmación para eliminar grupo */}
+      {isDeleteGroupModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Eliminar Grupo</h3>
+            </div>
+            <div className="modal-body">
+              <p>
+                ¿Estás seguro de que quieres eliminar el grupo <strong>&ldquo;{groupName}&rdquo;</strong>?
+              </p>
+              <p>Esta acción no se puede deshacer y eliminará permanentemente el grupo y todos sus datos asociados.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="secondary-btn" onClick={closeDeleteGroupModal} disabled={deletingGroup}>
+                Cancelar
+              </button>
+              <button className="danger-btn" onClick={handleDeleteGroup} disabled={deletingGroup}>
+                {deletingGroup ? 'Eliminando...' : 'Eliminar Grupo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mensaje de éxito/error */}
+      {message && <div className={`message ${message.type}`}>{message.text}</div>}
     </div>
   );
 };

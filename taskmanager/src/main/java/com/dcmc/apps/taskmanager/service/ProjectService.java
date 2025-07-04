@@ -42,18 +42,21 @@ public class ProjectService {
     private final ProjectMapper projectMapper;
     private final WorkGroupUserRoleRepository workGroupUserRoleRepository;
     private final UserMapper userMapper;
+    private final GroupSecurityService workGroupSecurityService;
 
     public ProjectService(ProjectRepository projectRepository
         , ProjectMapper projectMapper
         , UserRepository userRepository
         , WorkGroupUserRoleRepository workGroupUserRoleRepository
-        , UserMapper userMapper)
+        , UserMapper userMapper
+        , GroupSecurityService workGroupSecurityService)
     {
         this.projectRepository = projectRepository;
         this.projectMapper = projectMapper;
         this.userRepository = userRepository;
         this.workGroupUserRoleRepository = workGroupUserRoleRepository;
         this.userMapper = userMapper;
+        this.workGroupSecurityService = workGroupSecurityService;
     }
 
     /**
@@ -75,10 +78,12 @@ public class ProjectService {
         if (workGroup != null) {
             boolean userInGroup = workGroupUserRoleRepository.existsByUser_LoginAndGroup_Id(user.getLogin(), workGroup.getId());
             if (!userInGroup) {
-                // Lanzar excepción si no pertenece al grupo
                 throw new AccessDeniedException("El usuario no pertenece al grupo de trabajo del proyecto");
             }
         }
+
+        // Asegurar que al crear, deleted esté en false (activo)
+        project.setDeleted(false);
 
         // Agrega al usuario como miembro del proyecto
         project.getMembers().add(user);
@@ -96,7 +101,15 @@ public class ProjectService {
      */
     public ProjectDTO update(ProjectDTO projectDTO) {
         LOG.debug("Request to update Project : {}", projectDTO);
+
+        // Verificar que el proyecto existe y no está eliminado
+        Project existingProject = projectRepository.findById(projectDTO.getId())
+            .filter(p -> !Boolean.TRUE.equals(p.getDeleted()))
+            .orElseThrow(() -> new BadRequestAlertException("Proyecto no encontrado o eliminado", "Project", "notfound"));
+
         Project project = projectMapper.toEntity(projectDTO);
+        project.setDeleted(existingProject.getDeleted()); // conservar estado deleted
+
         project = projectRepository.save(project);
         return projectMapper.toDto(project);
     }
@@ -112,9 +125,9 @@ public class ProjectService {
 
         return projectRepository
             .findById(projectDTO.getId())
+            .filter(p -> !Boolean.TRUE.equals(p.getDeleted()))
             .map(existingProject -> {
                 projectMapper.partialUpdate(existingProject, projectDTO);
-
                 return existingProject;
             })
             .map(projectRepository::save)
@@ -130,7 +143,9 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public Page<ProjectDTO> findAll(Pageable pageable) {
         LOG.debug("Request to get all Projects");
-        return projectRepository.findAll(pageable).map(projectMapper::toDto);
+        // Filtrar solo proyectos no eliminados
+        return projectRepository.findAllByDeletedFalse(pageable)
+            .map(projectMapper::toDto);
     }
 
     /**
@@ -139,7 +154,8 @@ public class ProjectService {
      * @return the list of entities.
      */
     public Page<ProjectDTO> findAllWithEagerRelationships(Pageable pageable) {
-        return projectRepository.findAllWithEagerRelationships(pageable).map(projectMapper::toDto);
+        return projectRepository.findAllByDeletedFalse(pageable)
+            .map(projectMapper::toDto);
     }
 
     /**
@@ -151,7 +167,9 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public Optional<ProjectDTO> findOne(Long id) {
         LOG.debug("Request to get Project : {}", id);
-        return projectRepository.findOneWithEagerRelationships(id).map(projectMapper::toDto);
+        return projectRepository.findOneWithEagerRelationships(id)
+            .filter(p -> !Boolean.TRUE.equals(p.getDeleted()))
+            .map(projectMapper::toDto);
     }
 
     /**
@@ -161,27 +179,30 @@ public class ProjectService {
      */
     public void delete(Long id) {
         LOG.debug("Request to delete Project : {}", id);
-        projectRepository.deleteById(id);
+        Project project = projectRepository.findById(id)
+            .orElseThrow(() -> new BadRequestAlertException("Proyecto no encontrado", "Project", "notfound"));
+
+        // Marcar deleted en true en vez de borrar físicamente
+        project.setDeleted(true);
+        projectRepository.save(project);
     }
 
     @Transactional
     public ProjectDTO assignUserToProject(Long projectId, String userLogin) {
         Project project = projectRepository.findById(projectId)
-            .orElseThrow(() -> new EntityNotFoundException("Proyecto no encontrado"));
+            .filter(p -> !Boolean.TRUE.equals(p.getDeleted()))
+            .orElseThrow(() -> new EntityNotFoundException("Proyecto no encontrado o eliminado"));
 
         Long groupId = project.getWorkGroup().getId();
 
-        // 💡 Verificamos si el usuario pertenece al grupo del proyecto
         boolean isUserInGroup = workGroupUserRoleRepository.existsByUser_LoginAndGroup_Id(userLogin, groupId);
         if (!isUserInGroup) {
             throw new AccessDeniedException("El usuario no pertenece al grupo de trabajo del proyecto");
         }
 
-        // 🔎 Obtenemos al usuario por login
         User user = userRepository.findOneByLogin(userLogin)
             .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
 
-        // ➕ Lo agregamos como miembro del proyecto si aún no lo es
         if (!project.getMembers().contains(user)) {
             project.getMembers().add(user);
             project = projectRepository.save(project);
@@ -192,17 +213,16 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public List<UserDTO> findMembersByProjectId(Long projectId, String currentUserLogin) {
         Project project = projectRepository.findById(projectId)
-            .orElseThrow(() -> new EntityNotFoundException("Proyecto no encontrado"));
+            .filter(p -> !Boolean.TRUE.equals(p.getDeleted()))
+            .orElseThrow(() -> new EntityNotFoundException("Proyecto no encontrado o eliminado"));
 
         Long groupId = project.getWorkGroup().getId();
 
-        // Validar si el usuario actual pertenece al grupo
         boolean isMember = workGroupUserRoleRepository.existsByUser_LoginAndGroup_Id(currentUserLogin, groupId);
         if (!isMember) {
             throw new AccessDeniedException("El usuario no tiene rol en el grupo asociado al proyecto.");
         }
 
-        // Convertir Set<User> a List<UserDTO>
         return project.getMembers()
             .stream()
             .map(userMapper::userToUserDTO)
@@ -211,32 +231,31 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public List<ProjectDTO> findByWorkGroupId(Long workGroupId) {
-        List<Project> projects = projectRepository.findAllByWorkGroup_Id(workGroupId);
+        // Asumiendo que agregas método findAllByWorkGroup_IdAndDeletedFalse en el repositorio
+        List<Project> projects = projectRepository.findAllByWorkGroup_IdAndDeletedFalse(workGroupId);
         return projectMapper.toDto(projects);
     }
 
     @Transactional
     public void removeUserFromProject(Long projectId, String usernameToRemove, String currentUsername) {
-        Project project = projectRepository.findByIdWithMembers(projectId)
-            .orElseThrow(() -> new EntityNotFoundException("Proyecto no encontrado"));
+        // Cargamos el proyecto junto con sus miembros y grupo
+        Project project = projectRepository.findByIdWithMembersAndWorkGroup(projectId)
+            .filter(p -> !Boolean.TRUE.equals(p.getDeleted()))
+            .orElseThrow(() -> new EntityNotFoundException("Proyecto no encontrado o eliminado"));
 
-        // Verificar que currentUser pertenece al proyecto
-        boolean isAuthorized = project.getMembers().stream()
-            .anyMatch(user -> user.getLogin().equals(currentUsername));
-        if (!isAuthorized) {
-            throw new AccessDeniedException("No tienes permiso para modificar este proyecto");
+        Long workGroupId = project.getWorkGroup().getId();
+
+        // Validar que el usuario actual tiene permiso (OWNER o MODERATOR del grupo)
+        workGroupSecurityService.checkIsOwnerOrModerator(workGroupId);
+        // Buscar el usuario a remover
+        User userToRemove = userRepository.findOneByLogin(usernameToRemove)
+            .orElseThrow(() -> new EntityNotFoundException("Usuario a eliminar no encontrado"));
+
+        if (!project.getMembers().contains(userToRemove)) {
+            throw new IllegalArgumentException("El usuario no pertenece a este proyecto");
         }
 
-        // Verificar que el usuario a eliminar pertenece al proyecto
-        Optional<User> userToRemoveOpt = project.getMembers().stream()
-            .filter(u -> u.getLogin().equals(usernameToRemove))
-            .findFirst();
-        if (userToRemoveOpt.isEmpty()) {
-            throw new BadRequestAlertException("El usuario no pertenece al proyecto", "Project", "usernotinproject");
-        }
-
-        // Eliminar y guardar
-        project.getMembers().remove(userToRemoveOpt.get());
+        project.removeMembers(userToRemove);
         projectRepository.save(project);
     }
 

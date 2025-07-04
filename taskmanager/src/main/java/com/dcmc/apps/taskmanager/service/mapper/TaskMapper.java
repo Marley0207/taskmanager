@@ -19,6 +19,7 @@ public interface TaskMapper extends EntityMapper<TaskDTO, Task> {
     @Mapping(target = "parentTask", source = "parentTaskId")
     @Mapping(target = "assignedTos", ignore = true)
     @Mapping(target = "archived", source = "archived")
+    @Mapping(target = "deleted", source = "deleted")
     Task toEntity(TaskDTO taskDTO);
 
     // De entidad a DTO
@@ -27,6 +28,7 @@ public interface TaskMapper extends EntityMapper<TaskDTO, Task> {
     @Mapping(source = "parentTask.id", target = "parentTaskId")
     @Mapping(target = "subTaskIds", expression = "java(mapSubTaskIds(task))")
     @Mapping(source = "archived", target = "archived")
+    @Mapping(source = "deleted", target = "deleted")
     TaskDTO toDto(Task task);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

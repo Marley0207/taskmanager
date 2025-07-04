@@ -29,8 +29,6 @@ public interface TaskRepository extends TaskRepositoryWithBagRelationships, JpaR
         return this.fetchBagRelationships(this.findAll(pageable));
     }
 
-    List<Task> findByWorkGroup_IdAndArchivedTrue(Long groupId);
-
     @Query("SELECT t FROM Task t JOIN t.workGroup wg JOIN WorkGroupUserRole wgur ON wgur.group = wg " +
         "WHERE t.archived = true AND wgur.user.login = :login")
     List<Task> findArchivedTasksByUserLogin(@Param("login") String login);
@@ -40,10 +38,15 @@ public interface TaskRepository extends TaskRepositoryWithBagRelationships, JpaR
     @Query("SELECT t FROM Task t LEFT JOIN FETCH t.project p LEFT JOIN FETCH p.members WHERE t.id = :taskId")
     Optional<Task> findByIdWithProjectAndMembers(@Param("taskId") Long taskId);
 
-    List<Task> findByProjectIdAndArchivedTrue(Long projectId);
+    Page<Task> findAllByDeletedFalse(Pageable pageable);
 
-    List<Task> findByParentTask_Id(Long parentTaskId);
+    @EntityGraph(attributePaths = {"assignedTos", "project", "workGroup"})
+    Page<Task> findAllWithEagerRelationshipsByDeletedFalse(Pageable pageable);
 
+    // Buscar tareas archivadas (y no eliminadas) de un proyecto
+    List<Task> findByProjectIdAndArchivedTrueAndDeletedFalse(Long projectId);
 
+    List<Task> findByProjectIdAndDeletedFalse(Long projectId);
 
+    List<Task> findByParentTask_IdAndDeletedFalse(Long parentTaskId);
 }

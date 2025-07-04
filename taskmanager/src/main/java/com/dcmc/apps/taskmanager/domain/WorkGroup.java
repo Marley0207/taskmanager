@@ -30,6 +30,10 @@ public class WorkGroup implements Serializable {
     @Column(name = "description")
     private String description;
 
+    @NotNull
+    @Column(name = "deleted", nullable = false)
+    private Boolean deleted = false;
+
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "workGroup")
     @JsonIgnoreProperties(value = { "subTasks", "members", "workGroup" }, allowSetters = true)
     private Set<Project> projects = new HashSet<>();
@@ -85,6 +89,19 @@ public class WorkGroup implements Serializable {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Boolean getDeleted() {
+        return this.deleted;
+    }
+
+    public WorkGroup deleted(Boolean deleted) {
+        this.setDeleted(deleted);
+        return this;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
     }
 
     public Set<Project> getProjects() {
@@ -187,17 +204,16 @@ public class WorkGroup implements Serializable {
 
     @Override
     public int hashCode() {
-        // see https://vladmihalcea.com/how-to-implement-equals-and-hashcode-using-the-jpa-entity-identifier/
         return getClass().hashCode();
     }
 
-    // prettier-ignore
     @Override
     public String toString() {
         return "WorkGroup{" +
             "id=" + getId() +
             ", name='" + getName() + "'" +
             ", description='" + getDescription() + "'" +
+            ", deleted=" + getDeleted() +
             "}";
     }
 }

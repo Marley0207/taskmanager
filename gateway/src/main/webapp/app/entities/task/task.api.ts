@@ -11,6 +11,27 @@ export const getTasksByWorkGroup = (workGroupId: number) => axios.get<ITask[]>(`
 
 export const getMyTasks = () => axios.get<ITask[]>(`${apiUrl}/my-tasks`);
 
+// Funciones wrapper que filtran automáticamente las tareas eliminadas
+export const getActiveTasks = async () => {
+  const response = await axios.get<ITask[]>(apiUrl);
+  return { ...response, data: response.data.filter(task => !task.deleted) };
+};
+
+export const getActiveTasksByProject = async (projectId: number) => {
+  const response = await axios.get<ITask[]>(`${apiUrl}/projects/${projectId}/tasks`);
+  return { ...response, data: response.data.filter(task => !task.deleted) };
+};
+
+export const getActiveTasksByWorkGroup = async (workGroupId: number) => {
+  const response = await axios.get<ITask[]>(`${apiUrl}/by-work-group/${workGroupId}`);
+  return { ...response, data: response.data.filter(task => !task.deleted) };
+};
+
+export const getMyActiveTasks = async () => {
+  const response = await axios.get<ITask[]>(`${apiUrl}/my-tasks`);
+  return { ...response, data: response.data.filter(task => !task.deleted) };
+};
+
 export const getTask = (id: number) => axios.get<ITask>(`${apiUrl}/${id}`);
 
 export const createTask = (entity: any) => axios.post<ITask>(apiUrl, entity);
@@ -19,6 +40,34 @@ export const updateTask = (entity: ITask) => axios.put<ITask>(`${apiUrl}/${entit
 
 export const deleteTask = (projectId: number, taskId: number) =>
   axios.delete(`/services/taskmanager/api/tasks/projects/${projectId}/tasks/${taskId}`);
+
+// Nueva función para soft delete - actualizar el campo deleted a true
+export const softDeleteTask = async (projectId: number, taskId: number) => {
+  // Primero obtener la tarea completa
+  const taskResponse = await axios.get<ITask>(`${apiUrl}/${taskId}`);
+  const task = taskResponse.data;
+
+  // Crear un objeto con solo los campos necesarios, excluyendo las subtareas
+  const updatedTask = {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    priority: task.priority,
+    archived: task.archived,
+    deleted: true, // Marcar como eliminada
+    workGroupId: task.workGroupId,
+    parentTaskId: task.parentTaskId,
+    // No incluir subTasks, project, workGroup, assignedMembers, comments para evitar conflictos
+  };
+
+  // Enviar la actualización usando PATCH
+  return axios.patch<ITask>(`${apiUrl}/${taskId}`, updatedTask, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+};
 
 // Funciones para gestionar miembros asignados a la tarea
 export const getAssignedUsers = (taskId: number) => axios.get<ITaskMember[]>(`${apiUrl}/${taskId}/view-assigned-users`);

@@ -24,6 +24,10 @@ public class Priority implements Serializable {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @NotNull
+    @Column(name = "hidden", nullable = false)
+    private Boolean hidden = false;
+
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
     public Long getId() {
@@ -52,6 +56,19 @@ public class Priority implements Serializable {
         this.name = name;
     }
 
+    public Boolean getHidden() {
+        return this.hidden;
+    }
+
+    public Priority hidden(Boolean hidden) {
+        this.setHidden(hidden);
+        return this;
+    }
+
+    public void setHidden(Boolean hidden) {
+        this.hidden = hidden;
+    }
+
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
 
     @Override
@@ -67,7 +84,6 @@ public class Priority implements Serializable {
 
     @Override
     public int hashCode() {
-        // see https://vladmihalcea.com/how-to-implement-equals-and-hashcode-using-the-jpa-entity-identifier/
         return getClass().hashCode();
     }
 
@@ -77,6 +93,7 @@ public class Priority implements Serializable {
         return "Priority{" +
             "id=" + getId() +
             ", name='" + getName() + "'" +
+            ", hidden='" + getHidden() + "'" +
             "}";
     }
 }

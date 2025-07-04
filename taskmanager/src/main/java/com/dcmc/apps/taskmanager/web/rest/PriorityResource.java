@@ -179,4 +179,24 @@ public class PriorityResource {
             .headers(HeaderUtil.createEntityDeletionAlert(applicationName, false, ENTITY_NAME, id.toString()))
             .build();
     }
+
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PutMapping("/{id}/hide")
+    public ResponseEntity<PriorityDTO> hidePriority(@PathVariable Long id) {
+        LOG.debug("REST request to hide Priority : {}", id);
+        Optional<PriorityDTO> result = priorityService.hide(id);
+        return result.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /**
+     * {@code PUT  /priorities/{id}/unhide} : Unhide the priority (set hidden=false).
+     */
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PutMapping("/{id}/unhide")
+    public ResponseEntity<PriorityDTO> unhidePriority(@PathVariable Long id) {
+        LOG.debug("REST request to unhide Priority : {}", id);
+        Optional<PriorityDTO> result = priorityService.unhide(id);
+        return result.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
 }

@@ -14,7 +14,7 @@ import {
   faExclamationTriangle,
   faList,
 } from '@fortawesome/free-solid-svg-icons';
-import { getProject, deleteProject, addMemberToProject, removeMemberFromProject, getProjectMembers } from './project.api';
+import { getProject, softDeleteProject, addMemberToProject, removeMemberFromProject, getProjectMembers } from './project.api';
 import { getAvailableWorkGroupMembers } from './project.api';
 import { IProject, IProjectMember } from './project.model';
 import { getWorkGroupMembers } from '../work-group/work-group.api';
@@ -95,7 +95,7 @@ const ProjectDetails = () => {
     if (!id || !window.confirm('¿Estás seguro de que quieres eliminar este proyecto?')) return;
 
     try {
-      await deleteProject(parseInt(id, 10));
+      await softDeleteProject(parseInt(id, 10));
       navigate('/projects');
     } catch (err) {
       console.error('Error deleting project:', err);

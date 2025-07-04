@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faSave, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { getTask, patchTask, getAssignedUsers, getAvailableWorkGroupMembers, updateTaskMembers } from './task.api';
+import { getProjectMembers } from '../project/project.api';
 import { ITask, TaskPriority, TaskStatus, ITaskMember } from './task.model';
 
 const TaskEdit = () => {
@@ -28,14 +29,24 @@ const TaskEdit = () => {
       const response = await getTask(Number(id));
       setTask(response.data);
 
-      // Cargar miembros disponibles del grupo primero
+      // Cargar miembros disponibles del proyecto primero (para subtareas)
       let availableMembersList: ITaskMember[] = [];
-      if (response.data.workGroup?.id) {
+      if (response.data.project?.id) {
+        try {
+          const projectMembersRes = await getProjectMembers(response.data.project.id);
+          availableMembersList = projectMembersRes.data;
+        } catch (err) {
+          console.error('Error loading project members:', err);
+        }
+      }
+
+      // Fallback: si no hay proyecto, usar workgroup
+      if (availableMembersList.length === 0 && response.data.workGroup?.id) {
         try {
           const availableRes = await getAvailableWorkGroupMembers(response.data.workGroup.id);
           availableMembersList = availableRes.data;
         } catch (err) {
-          // Error loading available members
+          console.error('Error loading workgroup members:', err);
         }
       }
 
@@ -116,6 +127,7 @@ const TaskEdit = () => {
         status: task.status,
         project: task.project,
         workGroup: task.workGroup,
+        deleted: task.deleted || false,
         // Incluir otros campos que puedan ser necesarios
         assignedMembers,
         comments: task.comments || [],

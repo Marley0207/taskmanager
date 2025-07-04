@@ -79,16 +79,18 @@ const TaskCreate = () => {
       project: { id: Number(projectId), title: projectTitle },
       workGroup: { id: Number(workGroupId), name: workGroupName },
       workGroupId: Number(workGroupId),
+      deleted: false,
     };
     try {
       if (parentTaskId) {
         await createSubTask(Number(parentTaskId), payload);
         setMessage('Subtarea creada exitosamente');
+        setTimeout(() => navigate(`/tasks/${parentTaskId}/details`), 1200);
       } else {
         await createTask(payload);
         setMessage('Tarea creada exitosamente');
+        setTimeout(() => navigate(projectId ? `/tasks/${projectId}` : '/tasks'), 1200);
       }
-      setTimeout(() => navigate(projectId ? `/tasks/${projectId}` : '/tasks'), 1200);
     } catch (err: any) {
       setMessage(parentTaskId ? 'Error al crear la subtarea' : 'Error al crear la tarea');
     } finally {
@@ -103,7 +105,11 @@ const TaskCreate = () => {
   return (
     <div style={{ padding: '20px', maxWidth: 700, margin: '0 auto' }}>
       <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center' }}>
-        <Link to={projectId ? `/tasks/${projectId}` : '/tasks'} className="btn btn-secondary btn-sm" style={{ marginRight: 16 }}>
+        <Link
+          to={parentTaskId ? `/tasks/${parentTaskId}/details` : projectId ? `/tasks/${projectId}` : '/tasks'}
+          className="btn btn-secondary btn-sm"
+          style={{ marginRight: 16 }}
+        >
           <FontAwesomeIcon icon={faArrowLeft} /> Volver
         </Link>
         <h1 style={{ margin: 0 }}>{parentTaskId ? 'Crear Nueva Subtarea' : 'Crear Nueva Tarea'}</h1>
@@ -150,7 +156,7 @@ const TaskCreate = () => {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => navigate(projectId ? `/tasks/${projectId}` : '/tasks')}
+            onClick={() => navigate(parentTaskId ? `/tasks/${parentTaskId}/details` : projectId ? `/tasks/${projectId}` : '/tasks')}
             disabled={saving}
           >
             <FontAwesomeIcon icon={faTimes} /> Cancelar

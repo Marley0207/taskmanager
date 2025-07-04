@@ -17,6 +17,8 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface ProjectRepository extends ProjectRepositoryWithBagRelationships, JpaRepository<Project, Long> {
+
+    // Métodos con carga controlada de relaciones
     default Optional<Project> findOneWithEagerRelationships(Long id) {
         return this.fetchBagRelationships(this.findById(id));
     }
@@ -29,9 +31,16 @@ public interface ProjectRepository extends ProjectRepositoryWithBagRelationships
         return this.fetchBagRelationships(this.findAll(pageable));
     }
 
-    List<Project> findAllByWorkGroup_Id(Long workGroupId);
+    // ✅ Este método es seguro con paginación y evita el fetch join conflictivo
+    Page<Project> findAllByDeletedFalse(Pageable pageable);
+
+    List<Project> findAllByWorkGroup_IdAndDeletedFalse(Long workGroupId);
 
     @Query("SELECT p FROM Project p LEFT JOIN FETCH p.members WHERE p.id = :projectId")
     Optional<Project> findByIdWithMembers(@Param("projectId") Long projectId);
 
+    @Query("SELECT p FROM Project p LEFT JOIN FETCH p.members m LEFT JOIN FETCH p.workGroup wg WHERE p.id = :id")
+    Optional<Project> findByIdWithMembersAndWorkGroup(@Param("id") Long id);
+
 }
+

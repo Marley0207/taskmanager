@@ -65,29 +65,25 @@ public class WorkGroupService {
      * @return the persisted entity.
      */
     public WorkGroupDTO save(WorkGroupDTO workGroupDTO) {
-        // 1. Obtener el login del usuario actual
         String currentUserLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
-
         LOG.debug("Request to save WorkGroup : {}", workGroupDTO);
 
-        // 2. Crear la entidad WorkGroup a partir del DTO
         WorkGroup workGroup = workGroupMapper.toEntity(workGroupDTO);
 
-        // 3. Guardar el grupo en la base de datos
+        // Establecer deleted = false (activo)
+        workGroup.setDeleted(false);
+
         workGroup = workGroupRepository.save(workGroup);
 
-        // 4. Buscar el usuario actual
         var user = userRepository.findOneByLogin(currentUserLogin)
             .orElseThrow(() -> new BadRequestAlertException("Usuario no encontrado", "User", "notfound"));
 
-        // 5. Crear y guardar la relación OWNER entre el usuario y el grupo
         WorkGroupUserRole ownerRole = new WorkGroupUserRole();
         ownerRole.setGroup(workGroup);
         ownerRole.setUser(user);
         ownerRole.setRole(GroupRole.OWNER);
         workGroupUserRoleRepository.save(ownerRole);
 
-        // 6. Retornar el DTO del grupo creado
         return workGroupMapper.toDto(workGroup);
     }
 
@@ -99,7 +95,12 @@ public class WorkGroupService {
      */
     public WorkGroupDTO update(WorkGroupDTO workGroupDTO) {
         LOG.debug("Request to update WorkGroup : {}", workGroupDTO);
-        WorkGroup workGroup = workGroupMapper.toEntity(workGroupDTO);
+        WorkGroup workGroup = workGroupRepository.findById(workGroupDTO.getId())
+            .filter(wg -> Boolean.FALSE.equals(wg.getDeleted()))
+            .orElseThrow(() -> new BadRequestAlertException("WorkGroup no encontrado o eliminado", "WorkGroup", "notfound"));
+
+        workGroupMapper.partialUpdate(workGroup, workGroupDTO);
+
         workGroup = workGroupRepository.save(workGroup);
         return workGroupMapper.toDto(workGroup);
     }
@@ -115,9 +116,9 @@ public class WorkGroupService {
 
         return workGroupRepository
             .findById(workGroupDTO.getId())
+            .filter(wg -> Boolean.FALSE.equals(wg.getDeleted()))
             .map(existingWorkGroup -> {
                 workGroupMapper.partialUpdate(existingWorkGroup, workGroupDTO);
-
                 return existingWorkGroup;
             })
             .map(workGroupRepository::save)
@@ -133,7 +134,11 @@ public class WorkGroupService {
     @Transactional(readOnly = true)
     public Page<WorkGroupDTO> findAll(Pageable pageable) {
         LOG.debug("Request to get all WorkGroups");
-        return workGroupRepository.findAll(pageable).map(workGroupMapper::toDto);
+        return workGroupRepository.findAllByDeletedFalse(pageable).map(workGroupMapper::toDto);
+    }
+
+    public Page<WorkGroupDTO> findAllWithEagerRelationships(Pageable pageable) {
+        return workGroupRepository.findAllByDeletedFalse(pageable).map(workGroupMapper::toDto);
     }
 
     /**
@@ -141,9 +146,6 @@ public class WorkGroupService {
      *
      * @return the list of entities.
      */
-    public Page<WorkGroupDTO> findAllWithEagerRelationships(Pageable pageable) {
-        return workGroupRepository.findAllWithEagerRelationships(pageable).map(workGroupMapper::toDto);
-    }
 
     /**
      * Get one workGroup by id.
@@ -154,7 +156,9 @@ public class WorkGroupService {
     @Transactional(readOnly = true)
     public Optional<WorkGroupDTO> findOne(Long id) {
         LOG.debug("Request to get WorkGroup : {}", id);
-        return workGroupRepository.findOneWithEagerRelationships(id).map(workGroupMapper::toDto);
+        return workGroupRepository.findOneWithEagerRelationships(id)
+            .filter(wg -> Boolean.FALSE.equals(wg.getDeleted()))
+            .map(workGroupMapper::toDto);
     }
 
     /**
@@ -164,11 +168,19 @@ public class WorkGroupService {
      */
     public void delete(Long id) {
         LOG.debug("Request to delete WorkGroup : {}", id);
-        workGroupRepository.deleteById(id);
+        WorkGroup workGroup = workGroupRepository.findById(id)
+            .orElseThrow(() -> new BadRequestAlertException("WorkGroup no encontrado", "WorkGroup", "notfound"));
+
+        workGroup.setDeleted(true);
+        workGroupRepository.save(workGroup);
     }
 
     @Transactional(readOnly = true)
     public List<UserGroupRoleDTO> getAllUsersInGroup(Long groupId) {
+        WorkGroup wg = workGroupRepository.findById(groupId)
+            .filter(w -> Boolean.FALSE.equals(w.getDeleted()))
+            .orElseThrow(() -> new BadRequestAlertException("WorkGroup no encontrado o eliminado", "WorkGroup", "notfound"));
+
         return workGroupUserRoleRepository.findAllByGroup_Id(groupId).stream()
             .map(wgur -> new UserGroupRoleDTO(
                 userMapper.userToUserDTO(wgur.getUser()),
@@ -184,6 +196,7 @@ public class WorkGroupService {
 
         List<WorkGroup> groups = workGroupUserRoleRepository.findAllByUser_Login(currentUserLogin).stream()
             .map(WorkGroupUserRole::getGroup)
+            .filter(wg -> Boolean.FALSE.equals(wg.getDeleted()))
             .distinct()
             .toList();
 

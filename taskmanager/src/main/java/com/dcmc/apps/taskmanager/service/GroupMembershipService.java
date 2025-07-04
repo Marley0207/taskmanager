@@ -54,8 +54,10 @@ public class GroupMembershipService {
 
         checkPermissionToAssignRole(groupId, assignedRole);
 
+        // Buscar grupo activo (deleted == false)
         WorkGroup group = workGroupRepository.findById(groupId)
-            .orElseThrow(() -> new BadRequestAlertException("Grupo no encontrado", "WorkGroup", "notfound"));
+            .filter(wg -> !Boolean.TRUE.equals(wg.getDeleted()))
+            .orElseThrow(() -> new BadRequestAlertException("Grupo no encontrado o eliminado", "WorkGroup", "notfound"));
 
         // Validar si ya es miembro
         Optional<WorkGroupUserRole> existing = membershipRepository.findByUser_LoginAndGroup_Id(userLogin, groupId);
@@ -70,9 +72,14 @@ public class GroupMembershipService {
         }
     }
 
+
     public void removeUserFromGroup(Long groupId, String targetUserLogin) {
-        // Quién hace la petición (el que intenta eliminar)
         String currentUserLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
+
+        // Verificar grupo activo
+        WorkGroup group = workGroupRepository.findById(groupId)
+            .filter(wg -> !Boolean.TRUE.equals(wg.getDeleted()))
+            .orElseThrow(() -> new BadRequestAlertException("Grupo no encontrado o eliminado", "WorkGroup", "notfound"));
 
         GroupRole actorRole = groupSecurityService.getUserRoleInGroup(groupId); // rol del que llama
         GroupRole targetRole = groupSecurityService.getUserRoleOf(targetUserLogin, groupId); // rol del que será eliminado
@@ -85,23 +92,21 @@ public class GroupMembershipService {
             throw new BadRequestAlertException("El usuario a eliminar no pertenece al grupo", "WorkGroup", "notingroup");
         }
 
-        // Un moderador no puede eliminar a moderadores ni al OWNER
         if (actorRole == GroupRole.MODERADOR) {
             if (targetRole == GroupRole.MODERADOR || targetRole == GroupRole.OWNER) {
                 throw new AccessDeniedException("Un MODERADOR no puede eliminar a otros MODERADORES ni al OWNER.");
             }
         }
 
-        // El OWNER no puede eliminarse a sí mismo (usa leaveGroup para eso)
         if (targetUserLogin.equals(currentUserLogin) && actorRole == GroupRole.OWNER) {
             throw new BadRequestAlertException("No puedes eliminarte a ti mismo siendo OWNER. Usa la función de transferir propiedad o salir del grupo.", "WorkGroup", "owner-self-delete");
         }
 
-        // Todo bien, eliminar
         membershipRepository.deleteByUser_LoginAndGroup_Id(targetUserLogin, groupId);
     }
 
 
+    // Verifica permiso según rol
     private void checkPermissionToAssignRole(Long groupId, GroupRole role) {
         if (role == GroupRole.MODERADOR && !groupSecurityService.isModeratorOrOwner(groupId)) {
             throw new AccessDeniedException("Solo MODERADOR u OWNER puede agregar nuevos moderadores.");
@@ -121,6 +126,12 @@ public class GroupMembershipService {
 
     public void leaveGroup(Long groupId) {
         String currentLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
+
+        // Verificar grupo activo
+        WorkGroup group = workGroupRepository.findById(groupId)
+            .filter(wg -> !Boolean.TRUE.equals(wg.getDeleted()))
+            .orElseThrow(() -> new BadRequestAlertException("Grupo no encontrado o eliminado", "WorkGroup", "notfound"));
+
         GroupRole currentRole = groupSecurityService.getUserRoleInGroup(groupId);
 
         if (currentRole == null) {
@@ -135,19 +146,21 @@ public class GroupMembershipService {
     }
 
     public void transferOwnership(Long groupId, String newOwnerLogin) {
+        // Verificar grupo activo
+        WorkGroup group = workGroupRepository.findById(groupId)
+            .filter(wg -> !Boolean.TRUE.equals(wg.getDeleted()))
+            .orElseThrow(() -> new BadRequestAlertException("Grupo no encontrado o eliminado", "WorkGroup", "notfound"));
+
         String currentLogin = SecurityUtils.getCurrentUserLogin().orElseThrow();
 
-        // Verificar que el actual sea OWNER
         if (!groupSecurityService.isOwner(groupId)) {
             throw new AccessDeniedException("Solo el OWNER puede transferir la propiedad.");
         }
 
-        // Verificar que el nuevo owner es miembro del grupo
         WorkGroupUserRole newOwnerRole = membershipRepository
             .findByUser_LoginAndGroup_Id(newOwnerLogin, groupId)
             .orElseThrow(() -> new BadRequestAlertException("El usuario no pertenece al grupo", "WorkGroup", "notmember"));
 
-        // Actual OWNER pasa a MODERADOR
         WorkGroupUserRole currentOwnerRole = membershipRepository
             .findByUser_LoginAndGroup_Id(currentLogin, groupId)
             .orElseThrow(() -> new IllegalStateException("No se encontró al OWNER actual"));
@@ -159,19 +172,22 @@ public class GroupMembershipService {
         membershipRepository.save(newOwnerRole);
     }
 
+
     @Transactional
     public void promoteUserToModerator(Long groupId, String userLogin) {
-        // Validar que quien realiza la acción sea OWNER del grupo
+        // Verificar grupo activo
+        workGroupRepository.findById(groupId)
+            .filter(wg -> !Boolean.TRUE.equals(wg.getDeleted()))
+            .orElseThrow(() -> new BadRequestAlertException("Grupo no encontrado o eliminado", "WorkGroup", "notfound"));
+
         if (!groupSecurityService.isOwner(groupId)) {
             throw new AccessDeniedException("Solo el OWNER puede promover a moderadores.");
         }
 
-        // Verificar si el usuario es miembro del grupo
         WorkGroupUserRole membership = membershipRepository
             .findByUser_LoginAndGroup_Id(userLogin, groupId)
             .orElseThrow(() -> new EntityNotFoundException("El usuario no pertenece al grupo."));
 
-        // Validar que actualmente es MIEMBRO
         if (membership.getRole() != GroupRole.MIEMBRO) {
             throw new BadRequestAlertException("Solo se puede promover a miembros (MIEMBRO) a MODERADOR", "WorkGroup", "invalidrole");
         }
@@ -182,18 +198,19 @@ public class GroupMembershipService {
 
     @Transactional
     public void demoteModeratorToMember(Long groupId, String userLogin) {
+        // Verificar grupo activo
+        workGroupRepository.findById(groupId)
+            .filter(wg -> !Boolean.TRUE.equals(wg.getDeleted()))
+            .orElseThrow(() -> new BadRequestAlertException("Grupo no encontrado o eliminado", "WorkGroup", "notfound"));
 
-        // Buscar membresía
         WorkGroupUserRole membership = membershipRepository
             .findByUser_LoginAndGroup_Id(userLogin, groupId)
             .orElseThrow(() -> new EntityNotFoundException("El usuario no pertenece al grupo."));
 
-        // Solo el OWNER puede degradar
         if (!groupSecurityService.isOwner(groupId)) {
             throw new AccessDeniedException("Solo el OWNER puede degradar moderadores.");
         }
 
-        // Verificar que no sea OWNER
         if (membership.getRole() == GroupRole.OWNER) {
             throw new BadRequestAlertException("No puedes degradar al OWNER del grupo", "WorkGroup", "invalidaction");
         }
@@ -202,7 +219,6 @@ public class GroupMembershipService {
             throw new BadRequestAlertException("Solo puedes degradar a usuarios que son MODERADOR", "WorkGroup", "notmoderator");
         }
 
-        // Cambiar el rol
         membership.setRole(GroupRole.MIEMBRO);
         membershipRepository.save(membership);
     }

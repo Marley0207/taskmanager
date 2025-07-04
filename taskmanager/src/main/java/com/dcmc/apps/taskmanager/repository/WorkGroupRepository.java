@@ -24,8 +24,7 @@ public interface WorkGroupRepository extends WorkGroupRepositoryWithBagRelations
         return this.fetchBagRelationships(this.findAll());
     }
 
-    default Page<WorkGroup> findAllWithEagerRelationships(Pageable pageable) {
-        return this.fetchBagRelationships(this.findAll(pageable));
-    }
+    @Query("select wg from WorkGroup wg where wg.deleted = false")
+    Page<WorkGroup> findAllByDeletedFalse(Pageable pageable);
 
 }

@@ -8,6 +8,7 @@ export interface IWorkGroup {
     firstName?: string;
     lastName?: string;
   };
+  deleted?: boolean;
 }
 
 export interface IWorkGroupMember {
@@ -21,4 +22,5 @@ export interface IWorkGroupMember {
 
 export const defaultValue: Readonly<IWorkGroup> = {
   name: '',
+  deleted: false,
 };

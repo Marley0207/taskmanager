@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faPlus, faCheck, faExclamationTriangle, faArchive } from '@fortawesome/free-solid-svg-icons';
-import { getTasksByProject, deleteTask, getArchivedTasksByProject, deleteArchivedTask } from './task.api';
+import { getActiveTasksByProject, softDeleteTask, getArchivedTasksByProject, deleteArchivedTask } from './task.api';
 import { ITask } from './task.model';
 import { useAppSelector } from 'app/config/store';
 import TaskCard from './TaskCard';
@@ -46,7 +46,7 @@ const TaskList = () => {
   const loadTasks = async () => {
     setLoading(true);
     try {
-      const response = await getTasksByProject(parseInt(finalProjectId, 10));
+      const response = await getActiveTasksByProject(parseInt(finalProjectId, 10));
       // Filtrar solo las tareas no archivadas y que no sean subtareas
       const activeTasks = response.data.filter(task => !task.archived && (task.parentTaskId === null || task.parentTaskId === undefined));
       setTasks(activeTasks);
@@ -60,8 +60,10 @@ const TaskList = () => {
   const loadArchivedTasks = async () => {
     try {
       const response = await getArchivedTasksByProject(parseInt(finalProjectId, 10));
-      // Filtrar solo tareas archivadas que no sean subtareas
-      const archivedTasksList = response.data.filter(task => task.parentTaskId === null || task.parentTaskId === undefined);
+      // Filtrar solo tareas archivadas, no eliminadas y que no sean subtareas
+      const archivedTasksList = response.data.filter(
+        task => !task.deleted && (task.parentTaskId === null || task.parentTaskId === undefined),
+      );
       setArchivedTasks(archivedTasksList);
     } catch (err) {
       console.warn('Error al cargar las tareas archivadas:', err);
@@ -125,7 +127,7 @@ const TaskList = () => {
     if (!taskToDelete) return;
     setDeleting(true);
     try {
-      await deleteTask(taskToDelete.projectId, taskToDelete.id);
+      await softDeleteTask(taskToDelete.projectId, taskToDelete.id);
       setMessage({ type: 'success', text: 'Tarea eliminada exitosamente' });
       await loadTasks();
       await loadArchivedTasks(); // También recargar tareas archivadas por si acaso

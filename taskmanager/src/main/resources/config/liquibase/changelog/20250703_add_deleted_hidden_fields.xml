@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="
+        http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+  <!-- Añadir columna 'deleted' a work_group -->
+  <changeSet id="20250703-1" author="cristopher">
+    <addColumn tableName="work_group">
+      <column name="deleted" type="boolean" defaultValueBoolean="false">
+        <constraints nullable="false"/>
+      </column>
+    </addColumn>
+  </changeSet>
+
+  <!-- Añadir columna 'deleted' a project -->
+  <changeSet id="20250703-2" author="cristopher">
+    <addColumn tableName="project">
+      <column name="deleted" type="boolean" defaultValueBoolean="false">
+        <constraints nullable="false"/>
+      </column>
+    </addColumn>
+  </changeSet>
+
+  <!-- Añadir columna 'deleted' a task -->
+  <changeSet id="20250703-3" author="cristopher">
+    <addColumn tableName="task">
+      <column name="deleted" type="boolean" defaultValueBoolean="false">
+        <constraints nullable="false"/>
+      </column>
+    </addColumn>
+  </changeSet>
+
+  <!-- Añadir columna 'hidden' a priority -->
+  <changeSet id="20250703-4" author="cristopher">
+    <addColumn tableName="priority">
+      <column name="hidden" type="boolean" defaultValueBoolean="false">
+        <constraints nullable="false"/>
+      </column>
+    </addColumn>
+  </changeSet>
+
+</databaseChangeLog>

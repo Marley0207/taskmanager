@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave, faBan } from '@fortawesome/free-solid-svg-icons';
 import { createProject, updateProject, getProject } from './project.api';
-import { getWorkGroups, getMyWorkGroups, getWorkGroupMembers } from '../work-group/work-group.api';
+import { getActiveWorkGroups, getMyActiveWorkGroups, getWorkGroupMembers } from '../work-group/work-group.api';
 import { IProject, defaultValue } from './project.model';
 import { IWorkGroup, IWorkGroupMember } from '../work-group/work-group.model';
 import './project-create.scss';
@@ -26,15 +26,29 @@ const ProjectCreate = () => {
   const account = useAppSelector(state => state.authentication.account);
 
   useEffect(() => {
+    const loadWorkGroups = async () => {
+      setLoading(true);
+      try {
+        const isAdmin = account && account.authorities && account.authorities.includes('ROLE_ADMIN');
+        const response = isAdmin ? await getActiveWorkGroups() : await getMyActiveWorkGroups();
+        setWorkGroups(response.data);
+      } catch (error) {
+        console.error('Error loading work groups:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (account) {
+      loadWorkGroups();
+    }
+  }, [account]);
+
+  useEffect(() => {
     let isMounted = true;
 
     const loadInitialData = async () => {
       try {
-        const workGroupsResponse = await getMyWorkGroups();
-        if (isMounted) {
-          setWorkGroups(workGroupsResponse.data);
-        }
-
         if (!isNew && id && !workGroupId) {
           setLoading(true);
           try {
@@ -50,8 +64,8 @@ const ProjectCreate = () => {
           }
         }
 
-        if (isNew && workGroupId && workGroupsResponse.data.length > 0) {
-          const selectedWorkGroup = workGroupsResponse.data.find((wg: any) => wg.id === parseInt(workGroupId, 10));
+        if (isNew && workGroupId && workGroups.length > 0) {
+          const selectedWorkGroup = workGroups.find((wg: any) => wg.id === parseInt(workGroupId, 10));
           if (selectedWorkGroup) {
             setProject(prev => ({
               ...prev,
@@ -68,7 +82,7 @@ const ProjectCreate = () => {
     return () => {
       isMounted = false;
     };
-  }, [isNew, id, workGroupId]);
+  }, [isNew, id, workGroupId, workGroups]);
 
   useEffect(() => {
     let isMounted = true;
@@ -154,6 +168,7 @@ const ProjectCreate = () => {
     try {
       const entityToSave: IProject = {
         ...project,
+        deleted: false,
         members: selectedMembers.map(login => {
           const member = availableMembers.find(m => m.login === login);
           return {

@@ -13,10 +13,13 @@ import org.mapstruct.*;
  */
 @Mapper(componentModel = "spring")
 public interface WorkGroupMapper extends EntityMapper<WorkGroupDTO, WorkGroup> {
+
     @Mapping(target = "users", source = "users", qualifiedByName = "userLoginSet")
+    @Mapping(target = "deleted", source = "deleted") // ✅ Nuevo campo
     WorkGroupDTO toDto(WorkGroup s);
 
     @Mapping(target = "removeUsers", ignore = true)
+    @Mapping(target = "deleted", source = "deleted") // ✅ Nuevo campo
     WorkGroup toEntity(WorkGroupDTO workGroupDTO);
 
     @Named("userLogin")

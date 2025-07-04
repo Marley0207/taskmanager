@@ -32,12 +32,13 @@ public class TaskDTO implements Serializable {
     @JsonIgnore
     private Set<UserDTO> assignedTos;
 
-    // ✅ NUEVOS CAMPOS
     private Long parentTaskId;
 
     private Set<Long> subTaskIds;
 
     private Boolean archived;
+
+    private Boolean deleted; // ✅ Nuevo campo
 
     public Boolean getArchived() {
         return archived;
@@ -47,7 +48,13 @@ public class TaskDTO implements Serializable {
         this.archived = archived;
     }
 
-    // Getters & Setters
+    public Boolean getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
+    }
 
     public Long getId() {
         return id;
@@ -138,9 +145,11 @@ public class TaskDTO implements Serializable {
             ", priority=" + priority +
             ", status=" + status +
             ", workGroupId=" + workGroupId +
-            ", projectId=" + project +
+            ", project=" + project +
             ", parentTaskId=" + parentTaskId +
             ", subTaskIds=" + subTaskIds +
+            ", archived=" + archived +
+            ", deleted=" + deleted +
             ", assignedTos=" + assignedTos +
             '}';
     }

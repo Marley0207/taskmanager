@@ -13,7 +13,11 @@ const WorkGroupCreate = () => {
   const handleSubmit = async event => {
     event.preventDefault();
     setIsSubmitting(true);
-    const newWorkGroup: IWorkGroup = { name, description };
+    const newWorkGroup: IWorkGroup = {
+      name,
+      description,
+      deleted: false,
+    };
 
     try {
       await createWorkGroup(newWorkGroup);

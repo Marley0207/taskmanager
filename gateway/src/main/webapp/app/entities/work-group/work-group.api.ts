@@ -7,6 +7,17 @@ export const getWorkGroups = () => axios.get<IWorkGroup[]>(apiUrl);
 
 export const getMyWorkGroups = () => axios.get<IWorkGroup[]>(`${apiUrl}/my-groups`);
 
+// Funciones wrapper que filtran automáticamente los workgroups eliminados
+export const getActiveWorkGroups = async () => {
+  const response = await axios.get<IWorkGroup[]>(apiUrl);
+  return { ...response, data: response.data.filter(workGroup => !workGroup.deleted) };
+};
+
+export const getMyActiveWorkGroups = async () => {
+  const response = await axios.get<IWorkGroup[]>(`${apiUrl}/my-groups`);
+  return { ...response, data: response.data.filter(workGroup => !workGroup.deleted) };
+};
+
 export const getWorkGroup = (id: number) => axios.get<IWorkGroup>(`${apiUrl}/${id}`);
 
 export const createWorkGroup = (entity: IWorkGroup) => axios.post<IWorkGroup>(apiUrl, entity);
@@ -14,6 +25,12 @@ export const createWorkGroup = (entity: IWorkGroup) => axios.post<IWorkGroup>(ap
 export const updateWorkGroup = (entity: IWorkGroup) => axios.put<IWorkGroup>(`${apiUrl}/${entity.id}`, entity);
 
 export const deleteWorkGroup = (id: number) => axios.delete(`${apiUrl}/${id}`);
+
+// Nueva función para soft delete - usar el endpoint DELETE que ya tiene la lógica implementada
+export const softDeleteWorkGroup = async (id: number) => {
+  // Usar el endpoint DELETE que ya marca deleted = true en el backend
+  return axios.delete(`${apiUrl}/${id}`);
+};
 
 // Funciones para gestionar miembros del grupo
 export const getWorkGroupMembers = (id: number) => axios.get<IWorkGroupMember[]>(`/services/taskmanager/api/work-groups/${id}/members`);

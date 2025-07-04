@@ -15,11 +15,14 @@ import org.mapstruct.*;
  */
 @Mapper(componentModel = "spring")
 public interface ProjectMapper extends EntityMapper<ProjectDTO, Project> {
+
     @Mapping(target = "members", source = "members", qualifiedByName = "userLoginSet")
-    @Mapping(target = "workGroup", source = "workGroup") // <-- Mapea el objeto completo
+    @Mapping(target = "workGroup", source = "workGroup") // Mapea el objeto completo
+    @Mapping(target = "deleted", source = "deleted")       // Nuevo campo deleted
     ProjectDTO toDto(Project s);
 
     @Mapping(target = "removeMembers", ignore = true)
+    @Mapping(target = "deleted", source = "deleted")       // Nuevo campo deleted
     Project toEntity(ProjectDTO projectDTO);
 
     @Named("userLogin")

@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faEdit, faTrash, faEye, faUsers, faFilter, faTimes } from '@fortawesome/free-solid-svg-icons';
-import { getProjects, getProjectsByWorkGroup, deleteProject } from './project.api';
+import { getActiveProjects, getActiveProjectsByWorkGroup, softDeleteProject } from './project.api';
 import { IProject } from './project.model';
-import { getWorkGroups, getMyWorkGroups } from '../work-group/work-group.api';
+import { getActiveWorkGroups, getMyActiveWorkGroups } from '../work-group/work-group.api';
 import { IWorkGroup } from '../work-group/work-group.model';
 import './project-list.scss';
 import { useAppSelector } from 'app/config/store';
@@ -27,8 +27,8 @@ const ProjectList = () => {
     const loadInitialData = async () => {
       try {
         const [projectsResponse, workGroupsResponse] = await Promise.all([
-          workGroupId ? getProjectsByWorkGroup(Number(workGroupId)) : getProjects(),
-          isAdmin ? getWorkGroups() : getMyWorkGroups(),
+          workGroupId ? getActiveProjectsByWorkGroup(Number(workGroupId)) : getActiveProjects(),
+          isAdmin ? getActiveWorkGroups() : getMyActiveWorkGroups(),
         ]);
         if (isMounted) {
           setProjectList(projectsResponse.data);
@@ -48,7 +48,7 @@ const ProjectList = () => {
   const loadProjects = async () => {
     setLoading(true);
     try {
-      const response = await getProjects();
+      const response = await getActiveProjects();
       setProjectList(response.data);
     } catch (error) {
       console.error('Error loading projects:', error);
@@ -60,7 +60,7 @@ const ProjectList = () => {
   const loadProjectsByWorkGroup = async (groupId: number) => {
     setLoading(true);
     try {
-      const response = await getProjectsByWorkGroup(groupId);
+      const response = await getActiveProjectsByWorkGroup(groupId);
       setProjectList(response.data);
     } catch (error) {
       console.error('Error loading projects by work group:', error);
@@ -91,7 +91,15 @@ const ProjectList = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      await deleteProject(id);
+      // Validar que el ID sea válido
+      if (!id || id <= 0) {
+        console.error('ID de proyecto inválido:', id);
+        return false;
+      }
+
+      console.warn('Eliminando proyecto con ID:', id);
+      await softDeleteProject(id);
+
       if (selectedWorkGroup) {
         await loadProjectsByWorkGroup(selectedWorkGroup);
       } else {
@@ -232,7 +240,16 @@ const ProjectList = () => {
                     <Link to={`/projects/${project.id}/edit`} className="btn btn-sm btn-warning">
                       <FontAwesomeIcon icon={faEdit} />
                     </Link>
-                    <button onClick={() => handleDeleteClick(project.id)} className="btn btn-sm btn-danger">
+                    <button
+                      onClick={() => {
+                        if (project.id && project.id > 0) {
+                          handleDeleteClick(project.id);
+                        } else {
+                          console.error('ID de proyecto inválido:', project.id);
+                        }
+                      }}
+                      className="btn btn-sm btn-danger"
+                    >
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
                   </div>

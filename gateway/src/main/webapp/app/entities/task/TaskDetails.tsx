@@ -18,7 +18,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import {
   getTask,
-  deleteTask,
+  softDeleteTask,
   getAssignedUsers,
   addMemberToTask,
   archiveTask as apiArchiveTask,
@@ -32,6 +32,7 @@ import {
 import { ITask, TaskPriority, TaskStatus, ITaskMember, IComment } from './task.model';
 import './task-list.scss';
 import { getAvailableWorkGroupMembers } from './task.api';
+import { getProjectMembers } from '../project/project.api';
 import axios from 'axios';
 import Modal from 'react-modal';
 import SubtaskList from './SubtaskList';
@@ -74,8 +75,20 @@ const TaskDetails = () => {
   }, [id]);
 
   useEffect(() => {
-    const groupId = task?.workGroup?.id || task?.workGroupId;
-    if (groupId) {
+    if (task?.project?.id) {
+      // Para subtareas, obtener los miembros del proyecto específico
+      getProjectMembers(task.project.id)
+        .then(res => {
+          const members = Array.isArray(res.data) ? res.data : [];
+          setAvailableMembers(members);
+        })
+        .catch(err => {
+          console.error('Error loading project members:', err);
+          setAvailableMembers([]);
+        });
+    } else if (task?.workGroup?.id || task?.workGroupId) {
+      // Fallback: si no hay proyecto, usar workgroup
+      const groupId = task.workGroup?.id || task.workGroupId;
       getAvailableWorkGroupMembers(groupId).then(res => {
         const members = Array.isArray(res.data)
           ? res.data.length > 0 && res.data[0].user
@@ -144,7 +157,7 @@ const TaskDetails = () => {
     setDeletingTask(true);
     setMessage(null);
     try {
-      await deleteTask(task.workGroupId || task.workGroup.id, Number(id));
+      await softDeleteTask(task.project.id, Number(id));
       setMessage({ type: 'success', text: 'Tarea eliminada exitosamente' });
       setTimeout(() => navigate(-1), 1000);
     } catch (err) {
@@ -367,7 +380,13 @@ const TaskDetails = () => {
       )}
       <div className="task-details-header" style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
         <Link
-          to={task && task.project && task.project.id ? `/tasks?projectId=${task.project.id}` : '/tasks'}
+          to={
+            task.parentTaskId
+              ? `/tasks/${task.parentTaskId}/details`
+              : task && task.project && task.project.id
+                ? `/tasks?projectId=${task.project.id}`
+                : '/tasks'
+          }
           className="btn btn-secondary btn-sm"
           style={{ marginRight: 16 }}
         >

@@ -15,7 +15,7 @@ import {
   faArrowRight,
 } from '@fortawesome/free-solid-svg-icons';
 import { ITask, TaskPriority, TaskStatus } from './task.model';
-import { getSubtasks, deleteTask } from './task.api';
+import { getSubtasks, softDeleteTask } from './task.api';
 import TaskCard from './TaskCard';
 import './subtask-list.scss';
 
@@ -68,7 +68,7 @@ const SubtaskList: React.FC<SubtaskListProps> = ({ parentTaskId, projectId, onSu
     if (!taskToDelete) return;
     setDeleting(true);
     try {
-      await deleteTask(projectId, taskToDelete.id);
+      await softDeleteTask(projectId, taskToDelete.id);
       await loadSubtasks();
       onSubtaskDeleted?.();
       closeDeleteModal();

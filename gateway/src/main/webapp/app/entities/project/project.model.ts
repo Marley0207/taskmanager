@@ -16,6 +16,7 @@ export interface IProject {
   };
   createdAt?: string;
   updatedAt?: string;
+  deleted?: boolean;
 }
 
 export interface IProjectMember {
@@ -35,4 +36,5 @@ export const defaultValue: Readonly<IProject> = {
   },
   assignedMembers: [],
   members: [],
+  deleted: false,
 };

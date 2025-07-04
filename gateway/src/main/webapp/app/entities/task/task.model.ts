@@ -27,6 +27,7 @@ export interface ITask {
   archived?: boolean;
   parentTaskId?: number | null;
   subTaskIds?: number[];
+  deleted?: boolean;
 }
 
 export interface IComment {
@@ -78,6 +79,7 @@ export const defaultValue: Readonly<ITask> = {
   },
   assignedMembers: [],
   comments: [],
+  deleted: false,
 };
 
 export const defaultComment: Readonly<IComment> = {

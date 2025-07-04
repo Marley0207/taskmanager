@@ -8,4 +8,11 @@ import org.mapstruct.*;
  * Mapper for the entity {@link Priority} and its DTO {@link PriorityDTO}.
  */
 @Mapper(componentModel = "spring")
-public interface PriorityMapper extends EntityMapper<PriorityDTO, Priority> {}
+public interface PriorityMapper extends EntityMapper<PriorityDTO, Priority> {
+
+    @Mapping(target = "hidden", source = "hidden")
+    PriorityDTO toDto(Priority priority);
+
+    @Mapping(target = "hidden", source = "hidden")
+    Priority toEntity(PriorityDTO priorityDTO);
+}

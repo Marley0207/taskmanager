@@ -86,6 +86,11 @@ public class Task implements Serializable {
     @JsonIgnoreProperties(value = { "subTasks", "parentTask" }, allowSetters = true)
     private Task parentTask;
 
+    @NotNull
+    @Column(name = "deleted", nullable = false)
+    private Boolean deleted = false;
+
+
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
     public Long getId() {
@@ -315,6 +320,19 @@ public class Task implements Serializable {
         return this;
     }
 
+    public Boolean getDeleted() {
+        return this.deleted;
+    }
+
+    public Task deleted(Boolean deleted) {
+        this.setDeleted(deleted);
+        return this;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
+    }
+
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
 
@@ -347,6 +365,8 @@ public class Task implements Serializable {
             ", createTime='" + getCreateTime() + "'" +
             ", updateTime='" + getUpdateTime() + "'" +
             ", archived='" + getArchived() + "'" +
+            ", deleted='" + getDeleted() + "'" +
             "}";
     }
+
 }

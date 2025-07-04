@@ -4,6 +4,7 @@ import com.dcmc.apps.taskmanager.domain.Project;
 import com.dcmc.apps.taskmanager.domain.WorkGroupUserRole;
 import com.dcmc.apps.taskmanager.domain.enumeration.GroupRole;
 import com.dcmc.apps.taskmanager.repository.ProjectRepository;
+import com.dcmc.apps.taskmanager.repository.WorkGroupRepository;
 import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import jakarta.persistence.EntityNotFoundException;
@@ -15,10 +16,14 @@ public class GroupSecurityService {
 
     private final WorkGroupUserRoleRepository workGroupUserRoleRepository;
     private final ProjectRepository projectRepository;
+    private final WorkGroupUserRoleRepository userRoleRepository;
 
-    public GroupSecurityService(WorkGroupUserRoleRepository workGroupRepository, ProjectRepository projectRepository) {
-        this.workGroupUserRoleRepository = workGroupRepository;
+    public GroupSecurityService(WorkGroupUserRoleRepository workGroupUserRoleRepository
+        , ProjectRepository projectRepository
+        , WorkGroupUserRoleRepository userRoleRepository){
+        this.workGroupUserRoleRepository = workGroupUserRoleRepository;
         this.projectRepository = projectRepository;
+        this.userRoleRepository = userRoleRepository;
     }
 
     public GroupRole getUserRoleInGroup(Long groupId) {
@@ -72,6 +77,20 @@ public class GroupSecurityService {
 
         if (!isMember) {
             throw new AccessDeniedException("No tienes permiso para acceder a este proyecto");
+        }
+    }
+    public void checkIsOwnerOrModerator(Long groupId) {
+        String currentUsername = SecurityUtils.getCurrentUserLogin()
+            .orElseThrow(() -> new AccessDeniedException("Usuario no autenticado"));
+
+        WorkGroupUserRole userRole = workGroupUserRoleRepository.findByUser_LoginAndGroup_Id(currentUsername, groupId)
+            .orElseThrow(() -> new AccessDeniedException("Usuario no pertenece al grupo"));
+
+        GroupRole role = userRole.getRole();
+        if (role == GroupRole.OWNER || role == GroupRole.MODERADOR) {
+            // El usuario tiene permisos
+        } else {
+            throw new AccessDeniedException("No tienes permiso para realizar esta acción");
         }
     }
 }

@@ -19,6 +19,9 @@ public class ProjectDTO implements Serializable {
 
     private String description;
 
+    @NotNull
+    private Boolean deleted;
+
     private Set<UserDTO> members = new HashSet<>();
 
     @NotNull
@@ -46,6 +49,14 @@ public class ProjectDTO implements Serializable {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Boolean getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
     }
 
     public Set<UserDTO> getMembers() {
@@ -92,6 +103,7 @@ public class ProjectDTO implements Serializable {
             "id=" + getId() +
             ", title='" + getTitle() + "'" +
             ", description='" + getDescription() + "'" +
+            ", deleted=" + getDeleted() +
             ", members=" + getMembers() +
             ", workGroup=" + getWorkGroup() +
             "}";

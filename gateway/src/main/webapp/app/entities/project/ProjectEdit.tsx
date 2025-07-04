@@ -42,7 +42,10 @@ const ProjectEdit = () => {
     setError(null);
     try {
       // Siempre incluye los miembros actuales si no se están editando
-      const patch: Partial<IProject> = { id: project?.id };
+      const patch: Partial<IProject> = {
+        id: project?.id,
+        deleted: project?.deleted || false, // Asegurar que deleted no sea null
+      };
       Object.keys(form).forEach(key => {
         if ((form as any)[key] !== (project as any)[key]) {
           (patch as any)[key] = (form as any)[key];

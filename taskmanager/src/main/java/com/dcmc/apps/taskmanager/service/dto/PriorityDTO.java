@@ -15,6 +15,8 @@ public class PriorityDTO implements Serializable {
     @NotNull
     private String name;
 
+    private Boolean hidden; // ✅ Nuevo campo
+
     public Long getId() {
         return id;
     }
@@ -29,6 +31,14 @@ public class PriorityDTO implements Serializable {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public Boolean getHidden() {
+        return hidden;
+    }
+
+    public void setHidden(Boolean hidden) {
+        this.hidden = hidden;
     }
 
     @Override
@@ -58,6 +68,7 @@ public class PriorityDTO implements Serializable {
         return "PriorityDTO{" +
             "id=" + getId() +
             ", name='" + getName() + "'" +
+            ", hidden=" + getHidden() +
             "}";
     }
 }

@@ -40,16 +40,14 @@ public class PriorityService {
     public PriorityDTO save(PriorityDTO priorityDTO) {
         LOG.debug("Request to save Priority : {}", priorityDTO);
         Priority priority = priorityMapper.toEntity(priorityDTO);
+
+        // Siempre establecer hidden = false al crear
+        priority.setHidden(false);
+
         priority = priorityRepository.save(priority);
         return priorityMapper.toDto(priority);
     }
 
-    /**
-     * Update a priority.
-     *
-     * @param priorityDTO the entity to save.
-     * @return the persisted entity.
-     */
     public PriorityDTO update(PriorityDTO priorityDTO) {
         LOG.debug("Request to update Priority : {}", priorityDTO);
         Priority priority = priorityMapper.toEntity(priorityDTO);
@@ -57,12 +55,6 @@ public class PriorityService {
         return priorityMapper.toDto(priority);
     }
 
-    /**
-     * Partially update a priority.
-     *
-     * @param priorityDTO the entity to update partially.
-     * @return the persisted entity.
-     */
     public Optional<PriorityDTO> partialUpdate(PriorityDTO priorityDTO) {
         LOG.debug("Request to partially update Priority : {}", priorityDTO);
 
@@ -70,7 +62,6 @@ public class PriorityService {
             .findById(priorityDTO.getId())
             .map(existingPriority -> {
                 priorityMapper.partialUpdate(existingPriority, priorityDTO);
-
                 return existingPriority;
             })
             .map(priorityRepository::save)
@@ -78,35 +69,51 @@ public class PriorityService {
     }
 
     /**
-     * Get all the priorities.
-     *
-     * @return the list of entities.
+     * Get all the priorities that are NOT hidden.
      */
     @Transactional(readOnly = true)
     public List<PriorityDTO> findAll() {
-        LOG.debug("Request to get all Priorities");
-        return priorityRepository.findAll().stream().map(priorityMapper::toDto).collect(Collectors.toCollection(LinkedList::new));
+        LOG.debug("Request to get all visible Priorities");
+        return priorityRepository.findAllByHiddenFalse()
+            .stream()
+            .map(priorityMapper::toDto)
+            .collect(Collectors.toCollection(LinkedList::new));
     }
 
-    /**
-     * Get one priority by id.
-     *
-     * @param id the id of the entity.
-     * @return the entity.
-     */
     @Transactional(readOnly = true)
     public Optional<PriorityDTO> findOne(Long id) {
         LOG.debug("Request to get Priority : {}", id);
         return priorityRepository.findById(id).map(priorityMapper::toDto);
     }
 
-    /**
-     * Delete the priority by id.
-     *
-     * @param id the id of the entity.
-     */
     public void delete(Long id) {
         LOG.debug("Request to delete Priority : {}", id);
         priorityRepository.deleteById(id);
     }
+
+    /**
+     * Hide a priority (set hidden=true).
+     */
+    public Optional<PriorityDTO> hide(Long id) {
+        LOG.debug("Request to hide Priority : {}", id);
+        return priorityRepository.findById(id).map(priority -> {
+            priority.setHidden(true);
+            return priorityMapper.toDto(priorityRepository.save(priority));
+        });
+    }
+
+    /**
+     * Unhide a priority (set hidden=false).
+     */
+    /**
+     * Unhide a priority (set hidden=false).
+     */
+    public Optional<PriorityDTO> unhide(Long id) {
+        LOG.debug("Request to unhide Priority : {}", id);
+        return priorityRepository.findById(id).map(priority -> {
+            priority.setHidden(false);
+            return priorityMapper.toDto(priorityRepository.save(priority));
+        });
+    }
+
 }

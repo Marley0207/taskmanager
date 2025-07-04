@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from 'app/config/store';
-import { getWorkGroups, getMyWorkGroups } from './work-group.api';
+import { getActiveWorkGroups, getMyActiveWorkGroups, softDeleteWorkGroup } from './work-group.api';
 import { IWorkGroup } from './work-group.model';
 import EditWorkGroupModal from './EditWorkGroupModal';
 import './work-group-list.scss';
+import Modal from 'react-modal';
 
 const WorkGroupList = () => {
   const [workGroups, setWorkGroups] = useState<IWorkGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedWorkGroup, setSelectedWorkGroup] = useState<IWorkGroup | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [workGroupToDelete, setWorkGroupToDelete] = useState<IWorkGroup | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
 
   // Obtener información del usuario actual desde Redux
@@ -27,7 +31,7 @@ const WorkGroupList = () => {
     setLoading(true);
 
     // Si es admin, cargar todos los grupos, sino solo los del usuario
-    const apiCall = isAdmin() ? getWorkGroups() : getMyWorkGroups();
+    const apiCall = isAdmin() ? getActiveWorkGroups() : getMyActiveWorkGroups();
 
     apiCall
       .then(response => {
@@ -59,6 +63,31 @@ const WorkGroupList = () => {
   const handleCloseEditModal = () => {
     setIsEditModalOpen(false);
     setSelectedWorkGroup(null);
+  };
+
+  const handleDeleteClick = (workGroup: IWorkGroup) => {
+    setWorkGroupToDelete(workGroup);
+    setShowDeleteModal(true);
+  };
+
+  const handleDelete = async () => {
+    if (!workGroupToDelete) return;
+    setDeleting(true);
+    try {
+      await softDeleteWorkGroup(workGroupToDelete.id);
+      setShowDeleteModal(false);
+      setWorkGroupToDelete(null);
+      loadWorkGroups(); // Recargar la lista
+    } catch (error) {
+      console.error('Error al eliminar el grupo de trabajo:', error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setWorkGroupToDelete(null);
   };
 
   if (!isAuthenticated) {
@@ -149,6 +178,12 @@ const WorkGroupList = () => {
                 <span>✏️</span>
                 Editar
               </button>
+              {isAdmin() && (
+                <button className="action-btn danger" onClick={() => handleDeleteClick(wg)}>
+                  <span>🗑️</span>
+                  Eliminar
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -161,6 +196,64 @@ const WorkGroupList = () => {
           workGroup={selectedWorkGroup}
           onWorkGroupUpdated={handleWorkGroupUpdated}
         />
+      )}
+
+      {/* Modal de confirmación de eliminación */}
+      {showDeleteModal && (
+        <Modal
+          isOpen={showDeleteModal}
+          onRequestClose={cancelDelete}
+          contentLabel="Confirmar eliminación de grupo de trabajo"
+          ariaHideApp={false}
+          style={{
+            content: {
+              width: 400,
+              height: 200,
+              maxWidth: 400,
+              minWidth: 300,
+              margin: 'auto',
+              padding: 20,
+              borderRadius: 10,
+              textAlign: 'center',
+              border: '1.5px solid #dc3545',
+              boxShadow: '0 2px 12px rgba(220,53,69,0.10)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'visible',
+            },
+            overlay: { backgroundColor: 'rgba(0,0,0,0.14)' },
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 24 }}>⚠️</span>
+            <h4 style={{ color: '#dc3545', margin: 0, fontWeight: 700, fontSize: 18 }}>¿Eliminar grupo de trabajo?</h4>
+          </div>
+          <p style={{ fontSize: 14, color: '#333', marginBottom: 16, marginTop: 0, lineHeight: 1.4 }}>
+            ¿Estás seguro de que deseas eliminar el grupo &quot;{workGroupToDelete?.name}&quot;?
+            <br />
+            Esta acción ocultará el grupo pero no eliminará los datos permanentemente.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 0, width: '100%' }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={cancelDelete}
+              disabled={deleting}
+              style={{ minWidth: 80, fontWeight: 500, fontSize: 13 }}
+            >
+              Cancelar
+            </button>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={handleDelete}
+              disabled={deleting}
+              style={{ minWidth: 100, fontWeight: 500, fontSize: 13 }}
+            >
+              {deleting ? 'Eliminando...' : 'Eliminar'}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );

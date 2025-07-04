@@ -15,6 +15,7 @@ const EditWorkGroupModal = ({ isOpen, onClose, workGroup, onWorkGroupUpdated }: 
     id: workGroup.id,
     name: workGroup.name,
     description: workGroup.description || '',
+    deleted: workGroup.deleted || false,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
@@ -26,6 +27,7 @@ const EditWorkGroupModal = ({ isOpen, onClose, workGroup, onWorkGroupUpdated }: 
         id: workGroup.id,
         name: workGroup.name,
         description: workGroup.description || '',
+        deleted: workGroup.deleted || false,
       });
     }
   }, [workGroup]);
@@ -67,6 +69,7 @@ const EditWorkGroupModal = ({ isOpen, onClose, workGroup, onWorkGroupUpdated }: 
       id: workGroup.id,
       name: workGroup.name,
       description: workGroup.description || '',
+      deleted: workGroup.deleted || false,
     });
     setError('');
     onClose();
