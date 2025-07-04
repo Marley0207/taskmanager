@@ -178,12 +178,6 @@ const WorkGroupList = () => {
                 <span>✏️</span>
                 Editar
               </button>
-              {isAdmin() && (
-                <button className="action-btn danger" onClick={() => handleDeleteClick(wg)}>
-                  <span>🗑️</span>
-                  Eliminar
-                </button>
-              )}
             </div>
           </div>
         ))}

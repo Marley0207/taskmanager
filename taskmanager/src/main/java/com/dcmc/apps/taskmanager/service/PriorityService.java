@@ -71,10 +71,9 @@ public class PriorityService {
     /**
      * Get all the priorities that are NOT hidden.
      */
-    @Transactional(readOnly = true)
     public List<PriorityDTO> findAll() {
-        LOG.debug("Request to get all visible Priorities");
-        return priorityRepository.findAllByHiddenFalse()
+        LOG.debug("Request to get all Priorities (including hidden)");
+        return priorityRepository.findAll()
             .stream()
             .map(priorityMapper::toDto)
             .collect(Collectors.toCollection(LinkedList::new));

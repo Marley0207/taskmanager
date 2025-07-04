@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faSave, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faSave, faTimes, faCheck } from '@fortawesome/free-solid-svg-icons';
 import { getTask, patchTask, getAssignedUsers, getAvailableWorkGroupMembers, updateTaskMembers } from './task.api';
 import { getProjectMembers } from '../project/project.api';
 import { ITask, TaskPriority, TaskStatus, ITaskMember } from './task.model';
+import { getAllPriorities } from '../priority/priority.api';
+import { IPriority } from '../priority/priority.model';
 
 const TaskEdit = () => {
   const { id } = useParams<{ id: string }>();
@@ -16,11 +18,18 @@ const TaskEdit = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [assignedMembers, setAssignedMembers] = useState<ITaskMember[]>([]);
   const [availableMembers, setAvailableMembers] = useState<ITaskMember[]>([]);
+  const [priorities, setPriorities] = useState<IPriority[]>([]);
 
   useEffect(() => {
     if (id) {
       loadTask();
     }
+    // Cargar prioridades visibles
+    getAllPriorities()
+      .then(res => {
+        setPriorities(res.data.filter(p => !p.hidden));
+      })
+      .catch(() => setPriorities([]));
   }, [id]);
 
   const loadTask = async () => {
@@ -150,6 +159,9 @@ const TaskEdit = () => {
     }
   };
 
+  // Unir prioridades dinámicas y enum, sin duplicados
+  const mergedPriorities = Array.from(new Set([...priorities.map(p => p.name), ...Object.values(TaskPriority)]));
+
   if (loading) return <div className="loading">Cargando tarea...</div>;
   if (error) return <div className="error">{error}</div>;
   if (!task) return <div className="error">No se encontró la tarea</div>;
@@ -162,10 +174,28 @@ const TaskEdit = () => {
         </Link>
         <h1 style={{ margin: 0 }}>Editar Tarea</h1>
       </div>
-      {/* Alerta personalizada para errores */}
+      {/* Alerta personalizada para errores y éxito */}
       {message && (
-        <div className={`message error`} style={{ marginBottom: 16 }}>
-          <FontAwesomeIcon icon={faTimes} />
+        <div
+          className={`inline-message ${message === 'Tarea actualizada exitosamente' ? 'success' : 'error'}`}
+          style={{
+            margin: '20px auto 16px auto',
+            fontSize: 15,
+            padding: '10px 18px',
+            borderRadius: 6,
+            background: message === 'Tarea actualizada exitosamente' ? '#d4edda' : '#f8d7da',
+            color: message === 'Tarea actualizada exitosamente' ? '#155724' : '#721c24',
+            border: `1.5px solid ${message === 'Tarea actualizada exitosamente' ? '#28a745' : '#dc3545'}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            maxWidth: 500,
+            fontWeight: 500,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+            justifyContent: 'center',
+          }}
+        >
+          <FontAwesomeIcon icon={message === 'Tarea actualizada exitosamente' ? faCheck : faTimes} />
           <span>{message}</span>
         </div>
       )}
@@ -183,7 +213,7 @@ const TaskEdit = () => {
           <select name="priority" className="form-control" value={task.priority} onChange={handleChange} required>
             {Object.values(TaskPriority).map(priority => (
               <option key={priority} value={priority}>
-                {priority}
+                {priority.toUpperCase()}
               </option>
             ))}
           </select>

@@ -20,6 +20,7 @@ import { IProject, IProjectMember } from './project.model';
 import { getWorkGroupMembers } from '../work-group/work-group.api';
 import Modal from 'react-modal';
 import './project-details.scss';
+import { useAppSelector } from 'app/config/store';
 
 const ProjectDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +42,9 @@ const ProjectDetails = () => {
   const [showDeleteMemberModal, setShowDeleteMemberModal] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<IProjectMember | null>(null);
   const [deletingMember, setDeletingMember] = useState(false);
+
+  // Obtener el login del usuario autenticado
+  const account = useAppSelector(state => state.authentication.account);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -310,7 +314,12 @@ const ProjectDetails = () => {
                     </div>
                   </div>
                   <div className="member-actions">
-                    <button onClick={() => openDeleteMemberModal(member)} className="btn btn-danger btn-sm" title="Remover del proyecto">
+                    <button
+                      onClick={() => openDeleteMemberModal(member)}
+                      className="btn btn-danger btn-sm"
+                      title="Remover del proyecto"
+                      disabled={member.login === account?.login}
+                    >
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
                   </div>

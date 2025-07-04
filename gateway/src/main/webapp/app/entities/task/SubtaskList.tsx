@@ -1,21 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-  faPlus,
-  faEye,
-  faEdit,
-  faTrash,
-  faUsers,
-  faCalendar,
-  faExclamationTriangle,
-  faFlag,
-  faCheckCircle,
-  faClock,
-  faArrowRight,
-} from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faArrowRight } from '@fortawesome/free-solid-svg-icons';
 import { ITask, TaskPriority, TaskStatus } from './task.model';
 import { getSubtasks, softDeleteTask } from './task.api';
+import { getWorkGroupMembers } from '../work-group/work-group.api';
+import { IWorkGroupMember } from '../work-group/work-group.model';
+import { useAppSelector } from 'app/config/store';
 import TaskCard from './TaskCard';
 import './subtask-list.scss';
 
@@ -23,19 +14,51 @@ interface SubtaskListProps {
   parentTaskId: number;
   projectId: number;
   onSubtaskDeleted?: () => void;
+  currentUserRole?: string | null;
 }
 
-const SubtaskList: React.FC<SubtaskListProps> = ({ parentTaskId, projectId, onSubtaskDeleted }) => {
+const SubtaskList: React.FC<SubtaskListProps> = ({ parentTaskId, projectId, onSubtaskDeleted, currentUserRole: propCurrentUserRole }) => {
   const [subtasks, setSubtasks] = useState<ITask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<{ id: number; title: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(propCurrentUserRole || null);
+
+  // Obtener información del usuario actual desde Redux
+  const account = useAppSelector(state => state.authentication.account);
+  const isAuthenticated = useAppSelector(state => state.authentication.isAuthenticated);
 
   useEffect(() => {
     loadSubtasks();
   }, [parentTaskId]);
+
+  // Cargar el rol del usuario actual si no se proporciona como prop
+  useEffect(() => {
+    if (!propCurrentUserRole && subtasks.length > 0 && subtasks[0]?.workGroup?.id && isAuthenticated && account?.login) {
+      loadCurrentUserRole();
+    }
+  }, [subtasks, propCurrentUserRole, isAuthenticated, account?.login]);
+
+  const loadCurrentUserRole = async () => {
+    try {
+      const workGroupId = subtasks[0]?.workGroup?.id;
+      if (!workGroupId) return;
+
+      const response = await getWorkGroupMembers(workGroupId);
+      const members = response.data.map((item: any) => ({
+        ...item.user,
+        role: item.role,
+      }));
+
+      const currentMember = members.find((member: IWorkGroupMember) => member.login === account.login);
+      setCurrentUserRole(currentMember?.role || null);
+    } catch (err) {
+      console.error('Error loading current user role:', err);
+      setCurrentUserRole(null);
+    }
+  };
 
   const loadSubtasks = async () => {
     try {
@@ -79,66 +102,6 @@ const SubtaskList: React.FC<SubtaskListProps> = ({ parentTaskId, projectId, onSu
     }
   };
 
-  const getPriorityIcon = (priority: TaskPriority) => {
-    switch (priority) {
-      case TaskPriority.HIGH:
-        return <FontAwesomeIcon icon={faExclamationTriangle} className="priority-high" />;
-      case TaskPriority.NORMAL:
-        return <FontAwesomeIcon icon={faFlag} className="priority-normal" />;
-      case TaskPriority.LOW:
-        return <FontAwesomeIcon icon={faFlag} className="priority-low" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusIcon = (status: TaskStatus) => {
-    switch (status) {
-      case TaskStatus.DONE:
-        return <FontAwesomeIcon icon={faCheckCircle} className="status-done" />;
-      case TaskStatus.WORKING_ON_IT:
-        return <FontAwesomeIcon icon={faClock} className="status-working" />;
-      case TaskStatus.NOT_STARTED:
-        return <FontAwesomeIcon icon={faClock} className="status-not-started" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusText = (status: TaskStatus) => {
-    switch (status) {
-      case TaskStatus.DONE:
-        return 'Completada';
-      case TaskStatus.WORKING_ON_IT:
-        return 'En Progreso';
-      case TaskStatus.NOT_STARTED:
-        return 'No Iniciada';
-      default:
-        return status;
-    }
-  };
-
-  const getPriorityText = (priority: TaskPriority) => {
-    switch (priority) {
-      case TaskPriority.HIGH:
-        return 'Alta';
-      case TaskPriority.NORMAL:
-        return 'Normal';
-      case TaskPriority.LOW:
-        return 'Baja';
-      default:
-        return priority;
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
   if (loading) return <div className="loading">Cargando subtareas...</div>;
   if (error) return <div className="error">{error}</div>;
 
@@ -157,46 +120,7 @@ const SubtaskList: React.FC<SubtaskListProps> = ({ parentTaskId, projectId, onSu
       {subtasks.length > 0 ? (
         <div className="subtasks-grid" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {subtasks.map(subtask => (
-            <div
-              key={subtask.id}
-              className="subtask-card"
-              style={{
-                background: '#f8f9fa',
-                borderRadius: 10,
-                padding: '18px 22px',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-                marginBottom: 0,
-                border: '1px solid #e3e6ea',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-                position: 'relative',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ fontWeight: 700, fontSize: 20 }}>{subtask.title}</div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <Link to={`/tasks/${subtask.id}/details`} className="btn btn-info btn-xs" title="Ver Detalle">
-                    <FontAwesomeIcon icon={faEye} />
-                  </Link>
-                  <Link to={`/tasks/${subtask.id}/edit`} className="btn btn-warning btn-xs" title="Editar">
-                    <FontAwesomeIcon icon={faEdit} />
-                  </Link>
-                  <button className="btn btn-danger btn-xs" title="Eliminar" onClick={() => openDeleteModal(subtask.id)}>
-                    <FontAwesomeIcon icon={faTrash} />
-                  </button>
-                </div>
-              </div>
-              {subtask.description && <div style={{ color: '#555', fontSize: 15, marginBottom: 2 }}>{subtask.description}</div>}
-              <div style={{ display: 'flex', gap: 18, alignItems: 'center', fontSize: 14, marginTop: 2 }}>
-                <span>
-                  {getPriorityIcon(subtask.priority)} {getPriorityText(subtask.priority)}
-                </span>
-                <span>
-                  {getStatusIcon(subtask.status)} {getStatusText(subtask.status)}
-                </span>
-              </div>
-            </div>
+            <TaskCard key={subtask.id} task={subtask} onDelete={openDeleteModal} />
           ))}
         </div>
       ) : (

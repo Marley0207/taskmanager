@@ -11,6 +11,7 @@ import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.service.dto.ProjectDTO;
 import com.dcmc.apps.taskmanager.service.dto.UserDTO;
+import com.dcmc.apps.taskmanager.service.dto.UserWithRoleDTO;
 import com.dcmc.apps.taskmanager.service.mapper.ProjectMapper;
 
 import java.util.List;
@@ -211,7 +212,7 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
-    public List<UserDTO> findMembersByProjectId(Long projectId, String currentUserLogin) {
+    public List<UserWithRoleDTO> findMembersByProjectId(Long projectId, String currentUserLogin) {
         Project project = projectRepository.findById(projectId)
             .filter(p -> !Boolean.TRUE.equals(p.getDeleted()))
             .orElseThrow(() -> new EntityNotFoundException("Proyecto no encontrado o eliminado"));
@@ -225,7 +226,20 @@ public class ProjectService {
 
         return project.getMembers()
             .stream()
-            .map(userMapper::userToUserDTO)
+            .map(user -> {
+                // Log para depuración
+                System.out.println("User: " + user + ", login: " + user.getLogin());
+                UserWithRoleDTO dto = new UserWithRoleDTO();
+                dto.setId(user.getId());
+                dto.setLogin(user.getLogin());
+                // Busca el rol del usuario en el grupo
+                String role = workGroupUserRoleRepository
+                    .findByUser_LoginAndGroup_Id(user.getLogin(), groupId)
+                    .map(r -> r.getRole().name())
+                    .orElse(null);
+                dto.setRole(role);
+                return dto;
+            })
             .collect(Collectors.toList());
     }
 

@@ -681,4 +681,27 @@
       }
     }
   }
+}
+
+.inline-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 24px 0 16px 0;
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 1rem;
+  border: 1px solid transparent;
+
+  &.success {
+    background: #d1fae5;
+    color: #065f46;
+    border-color: #10b981;
+  }
+  &.error {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #ef4444;
+  }
 } 

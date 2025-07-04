@@ -10,6 +10,8 @@ import LeaveGroupModal from './LeaveGroupModal';
 import './work-group-details.scss';
 import { IWorkGroup, IWorkGroupMember } from './work-group.model';
 import { softDeleteWorkGroup } from './work-group.api';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCheck, faTimes } from '@fortawesome/free-solid-svg-icons';
 
 const WorkGroupDetails = () => {
   const { id } = useParams();
@@ -361,7 +363,12 @@ const WorkGroupDetails = () => {
       )}
 
       {/* Mensaje de éxito/error */}
-      {message && <div className={`message ${message.type}`}>{message.text}</div>}
+      {message && (
+        <div className={`message ${message.type}`} style={{ marginBottom: 16, marginTop: 80 }}>
+          <FontAwesomeIcon icon={message.type === 'success' ? faCheck : faTimes} />
+          <span>{message.text}</span>
+        </div>
+      )}
     </div>
   );
 };

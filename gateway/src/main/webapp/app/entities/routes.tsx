@@ -7,6 +7,7 @@ import ErrorBoundaryRoutes from 'app/shared/error/error-boundary-routes';
 import WorkGroupRoutes from './work-group/work-group.routes';
 import ProjectRoutes from './project/project.routes';
 import TaskRoutes from './task/task.routes';
+import PriorityAdmin from './priority/PriorityAdmin';
 
 /* jhipster-needle-add-route-import - JHipster will add routes here */
 
@@ -20,6 +21,7 @@ export default () => {
       <Route path="work-groups/*" element={<WorkGroupRoutes />} />
       <Route path="projects/*" element={<ProjectRoutes />} />
       <Route path="tasks/*" element={<TaskRoutes />} />
+      <Route path="priority-admin" element={<PriorityAdmin />} />
     </ErrorBoundaryRoutes>
   );
 };

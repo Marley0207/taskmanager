@@ -5,6 +5,7 @@ import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.service.ProjectService;
 import com.dcmc.apps.taskmanager.service.dto.ProjectDTO;
 import com.dcmc.apps.taskmanager.service.dto.UserDTO;
+import com.dcmc.apps.taskmanager.service.dto.UserWithRoleDTO;
 import com.dcmc.apps.taskmanager.web.rest.errors.BadRequestAlertException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -208,10 +209,10 @@ public class ProjectResource {
     }
 
     @GetMapping("/{id}/members")
-    public ResponseEntity<List<UserDTO>> getProjectMembers(@PathVariable Long id) {
+    public ResponseEntity<List<UserWithRoleDTO>> getProjectMembers(@PathVariable Long id) {
         String currentUserLogin = SecurityUtils.getCurrentUserLogin()
             .orElseThrow(() -> new AccessDeniedException("Usuario no autenticado"));
-        List<UserDTO> members = projectService.findMembersByProjectId(id, currentUserLogin);
+        List<UserWithRoleDTO> members = projectService.findMembersByProjectId(id, currentUserLogin);
         return ResponseEntity.ok(members);
     }
 

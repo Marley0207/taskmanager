@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faEdit, faTrash, faEye, faUsers, faFilter, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faEdit, faTrash, faEye, faUsers, faFilter, faTimes, faCheck } from '@fortawesome/free-solid-svg-icons';
 import { getActiveProjects, getActiveProjectsByWorkGroup, softDeleteProject } from './project.api';
 import { IProject } from './project.model';
 import { getActiveWorkGroups, getMyActiveWorkGroups } from '../work-group/work-group.api';
@@ -203,8 +203,27 @@ const ProjectList = () => {
       )}
 
       {alertMessage && (
-        <div className="alert alert-success" style={{ marginBottom: 16 }}>
-          {alertMessage}
+        <div
+          className="alert-message"
+          style={{
+            margin: '20px auto 16px auto',
+            fontSize: 15,
+            padding: '10px 18px',
+            borderRadius: 6,
+            background: '#d4edda',
+            color: '#155724',
+            border: '1.5px solid #28a745',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            maxWidth: 500,
+            fontWeight: 500,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+            justifyContent: 'center',
+          }}
+        >
+          <FontAwesomeIcon icon={faCheck} />
+          <span>{alertMessage}</span>
         </div>
       )}
 

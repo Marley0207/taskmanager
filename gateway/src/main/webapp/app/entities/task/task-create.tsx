@@ -5,6 +5,8 @@ import { faArrowLeft, faSave, faTimes } from '@fortawesome/free-solid-svg-icons'
 import { createTask, createSubTask } from './task.api';
 import { ITask, TaskPriority, TaskStatus, defaultValue } from './task.model';
 import { getProject } from '../project/project.api';
+import { getAllPriorities } from '../priority/priority.api';
+import { IPriority } from '../priority/priority.model';
 
 // Definir un tipo para la creación de tarea
 interface ITaskCreatePayload {
@@ -37,6 +39,7 @@ const TaskCreate = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [projectTitle, setProjectTitle] = useState('');
   const [workGroupName, setWorkGroupName] = useState('');
+  const [priorities, setPriorities] = useState<IPriority[]>([]);
 
   React.useEffect(() => {
     // Si no tenemos workGroupId pero sí projectId, obtenerlo del backend
@@ -55,6 +58,12 @@ const TaskCreate = () => {
         .catch(() => setMessage('No se pudo obtener el grupo de trabajo del proyecto'))
         .finally(() => setLoading(false));
     }
+    // Cargar prioridades visibles
+    getAllPriorities()
+      .then(res => {
+        setPriorities(res.data.filter(p => !p.hidden));
+      })
+      .catch(() => setPriorities([]));
   }, [projectId, workGroupIdFromUrl]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -98,6 +107,9 @@ const TaskCreate = () => {
     }
   };
 
+  // Unir prioridades dinámicas y enum, sin duplicados
+  const mergedPriorities = Array.from(new Set([...priorities.map(p => p.name), ...Object.values(TaskPriority)]));
+
   if (loading) {
     return <div className="loading">Cargando datos del proyecto...</div>;
   }
@@ -114,8 +126,27 @@ const TaskCreate = () => {
         </Link>
         <h1 style={{ margin: 0 }}>{parentTaskId ? 'Crear Nueva Subtarea' : 'Crear Nueva Tarea'}</h1>
       </div>
+      {/* Mensaje de éxito/error solo tras crear una tarea nueva o error */}
       {message && (
-        <div className={`message ${message.includes('exitosamente') ? 'success' : 'error'}`} style={{ marginBottom: 16 }}>
+        <div
+          className={`message ${message.includes('exitosamente') ? 'success' : 'error'}`}
+          style={{
+            margin: '20px auto 16px auto',
+            fontSize: 15,
+            padding: '10px 18px',
+            borderRadius: 6,
+            background: message.includes('exitosamente') ? '#d4edda' : '#f8d7da',
+            color: message.includes('exitosamente') ? '#155724' : '#721c24',
+            border: `1.5px solid ${message.includes('exitosamente') ? '#28a745' : '#dc3545'}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            maxWidth: 500,
+            fontWeight: 500,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+            justifyContent: 'center',
+          }}
+        >
           <FontAwesomeIcon icon={message.includes('exitosamente') ? faSave : faTimes} />
           <span>{message}</span>
         </div>
@@ -134,7 +165,7 @@ const TaskCreate = () => {
           <select name="priority" className="form-control" value={form.priority} onChange={handleChange} required>
             {Object.values(TaskPriority).map(priority => (
               <option key={priority} value={priority}>
-                {priority}
+                {priority.toUpperCase()}
               </option>
             ))}
           </select>

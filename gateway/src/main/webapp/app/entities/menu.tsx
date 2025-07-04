@@ -1,8 +1,11 @@
 import React from 'react';
+import { useAppSelector } from 'app/config/store';
 
 import MenuItem from 'app/shared/layout/menus/menu-item';
 
 const EntitiesMenu = () => {
+  const account = useAppSelector(state => state.authentication.account);
+  const isAdmin = account?.authorities?.includes('ROLE_ADMIN');
   return (
     <>
       {/* prettier-ignore */}
@@ -16,6 +19,11 @@ const EntitiesMenu = () => {
       <MenuItem icon="list" to="/tasks">
         Tareas
       </MenuItem>
+      {isAdmin && (
+        <MenuItem icon="flag" to="/priority-admin">
+          Prioridades
+        </MenuItem>
+      )}
     </>
   );
 };

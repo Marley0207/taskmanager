@@ -171,7 +171,6 @@ public class TaskResource {
     }
 
     @DeleteMapping("/{taskId}/archived")
-    @PreAuthorize("@groupSecurityService.isModeratorOrOwner(#groupId)")
     public ResponseEntity<Void> deleteArchivedTask(@PathVariable Long taskId) {
         taskService.deleteArchivedTask(taskId);
         return ResponseEntity.noContent().build();

@@ -16,6 +16,9 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { ITask, TaskPriority, TaskStatus } from './task.model';
 import { getAssignedUsers, getMembersOfArchivedTask, archiveTask } from './task.api';
+import { getWorkGroupMembers } from '../work-group/work-group.api';
+import { IWorkGroupMember } from '../work-group/work-group.model';
+import { useAppSelector } from 'app/config/store';
 
 interface TaskCardProps {
   task: ITask;
@@ -36,6 +39,11 @@ const TaskCard: React.FC<TaskCardProps> = ({
 }) => {
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [loadingMembers, setLoadingMembers] = useState(true);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+
+  // Obtener información del usuario actual desde Redux
+  const account = useAppSelector(state => state.authentication.account);
+  const isAuthenticated = useAppSelector(state => state.authentication.isAuthenticated);
 
   useEffect(() => {
     const loadMemberCount = async () => {
@@ -61,6 +69,34 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
     loadMemberCount();
   }, [task.id, isArchived]);
+
+  // Cargar el rol del usuario actual en el work group
+  useEffect(() => {
+    if (task?.workGroup?.id && isAuthenticated && account?.login) {
+      loadCurrentUserRole();
+    }
+  }, [task?.workGroup?.id, isAuthenticated, account?.login]);
+
+  const loadCurrentUserRole = async () => {
+    try {
+      if (!task?.workGroup?.id) {
+        setCurrentUserRole(null);
+        return;
+      }
+
+      const response = await getWorkGroupMembers(task.workGroup.id);
+      const members = response.data.map((item: any) => ({
+        ...item.user,
+        role: item.role,
+      }));
+
+      const currentMember = members.find((member: IWorkGroupMember) => member.login === account.login);
+      setCurrentUserRole(currentMember?.role || null);
+    } catch (err) {
+      console.error('TaskCard: Error loading current user role:', err);
+      setCurrentUserRole(null);
+    }
+  };
 
   const getPriorityIcon = (priority: TaskPriority) => {
     switch (priority) {
@@ -159,9 +195,6 @@ const TaskCard: React.FC<TaskCardProps> = ({
               <Link to={`/tasks/${task.id}/edit`} className="btn btn-sm btn-warning" title="Editar">
                 <FontAwesomeIcon icon={faEdit} />
               </Link>
-              <button onClick={handleArchive} className="btn btn-sm btn-secondary" title="Archivar">
-                <FontAwesomeIcon icon={faArchive} />
-              </button>
             </>
           )}
           {(isArchived ? canDeleteArchived : true) && (
