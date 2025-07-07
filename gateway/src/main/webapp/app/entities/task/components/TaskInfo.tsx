@@ -1,16 +1,13 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { ITask, TaskPriority, TaskStatus } from '../task.model';
+import { ITask, TaskStatus } from '../task.model';
+import { getPriorityIcon, getStatusIcon, getPriorityText, getStatusText } from '../utils/taskUtils';
 
 interface TaskInfoProps {
   task: ITask;
-  getPriorityIcon: (priority: TaskPriority) => React.ReactNode;
-  getStatusIcon: (status: TaskStatus) => React.ReactNode;
-  getPriorityText: (priority: TaskPriority) => string;
-  getStatusText: (status: TaskStatus) => string;
 }
 
-const TaskInfo: React.FC<TaskInfoProps> = ({ task, getPriorityIcon, getStatusIcon, getPriorityText, getStatusText }) => (
+const TaskInfo: React.FC<TaskInfoProps> = ({ task }) => (
   <>
     <div style={{ marginBottom: 16 }}>
       <strong>Descripción:</strong>

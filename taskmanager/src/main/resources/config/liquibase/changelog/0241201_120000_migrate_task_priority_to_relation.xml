@@ -1,0 +1,27 @@
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="
+        http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.4.xsd">
+
+  <changeSet id="20250630212942-1" author="roger">
+
+    <!-- Agregar columna priority_id -->
+    <addColumn tableName="task">
+      <column name="priority_id" type="bigint"/>
+    </addColumn>
+
+    <addForeignKeyConstraint
+      baseTableName="task"
+      baseColumnNames="priority_id"
+      referencedTableName="priority"
+      referencedColumnNames="id"
+      constraintName="fk_task_priority"/>
+
+    <!-- Paso 6: Eliminar la columna enum -->
+    <dropColumn tableName="task" columnName="priority"/>
+
+  </changeSet>
+
+</databaseChangeLog>

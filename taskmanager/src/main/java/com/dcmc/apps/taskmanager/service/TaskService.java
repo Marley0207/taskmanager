@@ -1,14 +1,12 @@
 package com.dcmc.apps.taskmanager.service;
 
+import com.dcmc.apps.taskmanager.domain.Priority;
 import com.dcmc.apps.taskmanager.domain.Project;
 import com.dcmc.apps.taskmanager.domain.Task;
 import com.dcmc.apps.taskmanager.domain.User;
 import com.dcmc.apps.taskmanager.domain.enumeration.GroupRole;
 import com.dcmc.apps.taskmanager.domain.enumeration.TaskStatus;
-import com.dcmc.apps.taskmanager.repository.ProjectRepository;
-import com.dcmc.apps.taskmanager.repository.TaskRepository;
-import com.dcmc.apps.taskmanager.repository.UserRepository;
-import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
+import com.dcmc.apps.taskmanager.repository.*;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import com.dcmc.apps.taskmanager.service.dto.TaskDTO;
 import com.dcmc.apps.taskmanager.service.dto.UserDTO;
@@ -47,6 +45,7 @@ public class TaskService {
     private final UserMapper userMapper;
     private final GroupSecurityService  groupSecurityService;
     private final WorkGroupUserRoleRepository workGroupUserRoleRepository;
+    private final PriorityRepository priorityRepository;
 
     public TaskService(TaskRepository taskRepository
         , TaskMapper taskMapper
@@ -54,7 +53,8 @@ public class TaskService {
         ,UserRepository userRepository
         , WorkGroupUserRoleRepository workGroupUserRoleRepository
         , UserMapper userMapper
-        , ProjectRepository projectRepository) {
+        , ProjectRepository projectRepository
+        , PriorityRepository priorityRepository) {
         this.taskRepository = taskRepository;
         this.taskMapper = taskMapper;
         this.groupSecurityService = groupSecurityService;
@@ -62,6 +62,7 @@ public class TaskService {
         this.workGroupUserRoleRepository = workGroupUserRoleRepository;
         this.userMapper = userMapper;
         this.projectRepository = projectRepository;
+        this.priorityRepository = priorityRepository;
     }
 
     /**
@@ -86,10 +87,19 @@ public class TaskService {
         Task task = taskMapper.toEntity(taskDTO);
         Instant now = Instant.now();
 
+        // 🔽 Obtener y asignar la prioridad desde el DTO
+        if (taskDTO.getPriority() != null && taskDTO.getPriority().getId() != null) {
+            Priority priorityEntity = priorityRepository.findById(taskDTO.getPriority().getId())
+                .orElseThrow(() -> new EntityNotFoundException("Prioridad no encontrada con id " + taskDTO.getPriority().getId()));
+            task.setPriority(priorityEntity);
+        } else {
+            throw new BadRequestAlertException("La prioridad es requerida", "Task", "prioritymissing");
+        }
+
         task.setCreateTime(now);
         task.setUpdateTime(now);
         task.setArchived(false);
-        task.setDeleted(false); // 👈 tarea activa al crear
+        task.setDeleted(false);
         task.getAssignedTos().add(currentUser);
 
         task = taskRepository.save(task);
@@ -111,8 +121,10 @@ public class TaskService {
                 taskRepository.save(subTask);
             }
         }
+
         return taskMapper.toDto(task);
     }
+
 
     /**
      * Update a task.
@@ -133,6 +145,15 @@ public class TaskService {
         Instant now = Instant.now();
         task.setUpdateTime(now);
 
+        // Asignar prioridad usando la entidad Priority
+        if (taskDTO.getPriority() != null && taskDTO.getPriority().getId() != null) {
+            Priority priorityEntity = priorityRepository.findById(taskDTO.getPriority().getId())
+                .orElseThrow(() -> new EntityNotFoundException("Prioridad no encontrada con id " + taskDTO.getPriority().getId()));
+            task.setPriority(priorityEntity);
+        } else {
+            throw new BadRequestAlertException("La prioridad es requerida", "Task", "prioritymissing");
+        }
+
         task = taskRepository.save(task);
 
         if (task.getSubTasks() != null && !task.getSubTasks().isEmpty()) {
@@ -152,6 +173,7 @@ public class TaskService {
         return taskMapper.toDto(task);
     }
 
+
     /**
      * Partially update a task.
      *
@@ -167,6 +189,14 @@ public class TaskService {
 
                 taskMapper.partialUpdate(existingTask, taskDTO);
 
+                // Actualizar prioridad si viene en el DTO
+                if (taskDTO.getPriority() != null && taskDTO.getPriority().getId() != null) {
+                    Priority priorityEntity = priorityRepository.findById(taskDTO.getPriority().getId())
+                        .orElseThrow(() -> new EntityNotFoundException("Prioridad no encontrada con id " + taskDTO.getPriority().getId()));
+                    existingTask.setPriority(priorityEntity);
+                }
+
+                // Actualizar subtareas si vienen en el DTO
                 if (taskDTO.getSubTaskIds() != null) {
                     Set<Task> subTaskEntities = taskDTO.getSubTaskIds().stream()
                         .map(taskMapper::fromIdTask)
@@ -181,6 +211,7 @@ public class TaskService {
             .map(taskRepository::save)
             .map(taskMapper::toDto);
     }
+
 
     /**
      * Get all the tasks.

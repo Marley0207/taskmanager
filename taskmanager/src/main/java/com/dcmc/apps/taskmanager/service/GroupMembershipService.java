@@ -52,7 +52,12 @@ public class GroupMembershipService {
         // Si el rol es null, asignar MIEMBRO por defecto
         GroupRole assignedRole = (role != null) ? role : GroupRole.MIEMBRO;
 
-        checkPermissionToAssignRole(groupId, assignedRole);
+        boolean isAdmin = groupSecurityService.isAdmin(); // 👈 verificar si es admin
+
+        if (!isAdmin) {
+            // Solo validar permisos si NO es admin
+            checkPermissionToAssignRole(groupId, assignedRole);
+        }
 
         // Buscar grupo activo (deleted == false)
         WorkGroup group = workGroupRepository.findById(groupId)
@@ -63,14 +68,16 @@ public class GroupMembershipService {
         Optional<WorkGroupUserRole> existing = membershipRepository.findByUser_LoginAndGroup_Id(userLogin, groupId);
         if (existing.isPresent()) {
             throw new BadRequestAlertException("El usuario ya es miembro del grupo", "WorkGroup", "alreadyingroup");
-        } else {
-            WorkGroupUserRole membership = new WorkGroupUserRole();
-            membership.setUser(user);
-            membership.setGroup(group);
-            membership.setRole(assignedRole);
-            membershipRepository.save(membership);
         }
+
+        // Crear nueva membresía
+        WorkGroupUserRole membership = new WorkGroupUserRole();
+        membership.setUser(user);
+        membership.setGroup(group);
+        membership.setRole(assignedRole);
+        membershipRepository.save(membership);
     }
+
 
 
     public void removeUserFromGroup(Long groupId, String targetUserLogin) {

@@ -9,6 +9,9 @@ import com.dcmc.apps.taskmanager.repository.WorkGroupUserRoleRepository;
 import com.dcmc.apps.taskmanager.security.SecurityUtils;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -31,11 +34,25 @@ public class GroupSecurityService {
         if (login == null) {
             throw new AccessDeniedException("Usuario no autenticado.");
         }
+
+        // Verificar si el usuario tiene el rol de admin
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = authentication != null &&
+            authentication.getAuthorities().stream()
+                .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority()));
+
+        // Si es admin, devolver un rol especial o simular que tiene permisos
+        if (isAdmin) {
+            return GroupRole.OWNER; // o cualquier rol que represente máximo acceso
+        }
+
+        // Si no es admin, buscar su rol real en el grupo
         return workGroupUserRoleRepository
             .findByUser_LoginAndGroup_Id(login, groupId)
             .map(WorkGroupUserRole::getRole)
             .orElseThrow(() -> new AccessDeniedException("El usuario no tiene rol en este grupo."));
     }
+
 
     public boolean isOwner(Long groupId) {
         return getUserRoleInGroup(groupId) == GroupRole.OWNER;
@@ -92,5 +109,15 @@ public class GroupSecurityService {
         } else {
             throw new AccessDeniedException("No tienes permiso para realizar esta acción");
         }
+    }
+
+    public boolean isAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+            .map(GrantedAuthority::getAuthority)
+            .anyMatch(role -> role.equals("ROLE_ADMIN"));
     }
 }

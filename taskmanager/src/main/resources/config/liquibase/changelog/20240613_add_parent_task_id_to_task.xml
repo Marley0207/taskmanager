@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.6.xsd">
+
+  <changeSet id="add-parent-task-id-to-task" author="tu-nombre">
+    <addColumn tableName="task">
+      <column name="parent_task_id" type="bigint"/>
+    </addColumn>
+    <addForeignKeyConstraint
+      baseTableName="task"
+      baseColumnNames="parent_task_id"
+      constraintName="fk_task_parent"
+      referencedTableName="task"
+      referencedColumnNames="id"/>
+  </changeSet>
+
+</databaseChangeLog>

@@ -143,7 +143,7 @@ public class PriorityResource {
      *
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of priorities in body.
      */
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+
     @GetMapping("")
     public List<PriorityDTO> getAllPriorities() {
         LOG.debug("REST request to get all Priorities");

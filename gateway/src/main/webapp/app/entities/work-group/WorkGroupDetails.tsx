@@ -34,6 +34,12 @@ const WorkGroupDetails = () => {
   const account = useAppSelector(state => state.authentication.account);
   const isAuthenticated = useAppSelector(state => state.authentication.isAuthenticated);
 
+  // Nueva función para saber si el usuario es admin
+  const isAdmin = account?.authorities?.includes('ROLE_ADMIN');
+
+  // Nueva función para saber si el usuario es miembro
+  const isMember = !!currentUser;
+
   const loadGroupData = async () => {
     try {
       setLoading(true);
@@ -66,6 +72,7 @@ const WorkGroupDetails = () => {
 
   // Función para determinar si el usuario actual puede realizar acciones
   const canManageMembers = () => {
+    if (isAdmin) return true; // Los admins pueden gestionar miembros siempre
     if (!currentUser || !currentUser.role) return false;
     return currentUser.role === 'OWNER' || currentUser.role === 'MODERADOR';
   };
@@ -134,6 +141,24 @@ const WorkGroupDetails = () => {
       closeDeleteGroupModal();
     }
   };
+
+  if (!isAdmin && !isMember && !loading) {
+    return (
+      <div className="work-group-details">
+        <div className="empty-state" style={{ textAlign: 'center', marginTop: 80 }}>
+          <div className="empty-icon" style={{ fontSize: 48, marginBottom: 16 }}>
+            ⛔
+          </div>
+          <div className="empty-title" style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>
+            Acceso denegado
+          </div>
+          <div className="empty-description" style={{ fontSize: 16 }}>
+            No tienes permisos para ver los detalles de este grupo de trabajo.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -298,6 +323,7 @@ const WorkGroupDetails = () => {
         onMemberAdded={handleMemberAdded}
         existingMembers={members}
         currentUserRole={currentUser?.role}
+        isAdmin={isAdmin}
       />
 
       <RemoveMemberModal

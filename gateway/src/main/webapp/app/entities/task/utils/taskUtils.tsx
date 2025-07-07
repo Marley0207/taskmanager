@@ -2,17 +2,18 @@ import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExclamationTriangle, faFlag, faCheckCircle, faClock } from '@fortawesome/free-solid-svg-icons';
 import { TaskPriority, TaskStatus } from '../task.model';
+import { IPriority } from '../../priority/priority.model';
 
-export const getPriorityIcon = (priority: TaskPriority): React.ReactNode => {
-  switch (priority) {
-    case TaskPriority.HIGH:
+export const getPriorityIcon = (priority: IPriority): React.ReactNode => {
+  switch (priority.name) {
+    case 'HIGH':
       return <FontAwesomeIcon icon={faExclamationTriangle} className="priority-high" />;
-    case TaskPriority.NORMAL:
+    case 'NORMAL':
       return <FontAwesomeIcon icon={faFlag} className="priority-normal" />;
-    case TaskPriority.LOW:
+    case 'LOW':
       return <FontAwesomeIcon icon={faFlag} className="priority-low" />;
     default:
-      return null;
+      return <FontAwesomeIcon icon={faFlag} className="priority-dynamic" />;
   }
 };
 
@@ -42,16 +43,16 @@ export const getStatusText = (status: TaskStatus) => {
   }
 };
 
-export const getPriorityText = (priority: TaskPriority) => {
-  switch (priority) {
-    case TaskPriority.HIGH:
+export const getPriorityText = (priority: IPriority) => {
+  switch (priority.name) {
+    case 'HIGH':
       return 'Alta';
-    case TaskPriority.NORMAL:
+    case 'NORMAL':
       return 'Normal';
-    case TaskPriority.LOW:
+    case 'LOW':
       return 'Baja';
     default:
-      return priority;
+      return priority.name;
   }
 };
 

@@ -1,6 +1,5 @@
 package com.dcmc.apps.taskmanager.service.dto;
 
-import com.dcmc.apps.taskmanager.domain.enumeration.TaskPriority;
 import com.dcmc.apps.taskmanager.domain.enumeration.TaskStatus;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.*;
@@ -18,7 +17,7 @@ public class TaskDTO implements Serializable {
     private String description;
 
     @NotNull
-    private TaskPriority priority;
+    private PriorityDTO priority; // ✅ Objeto completo de prioridad
 
     @NotNull
     private TaskStatus status;
@@ -38,23 +37,7 @@ public class TaskDTO implements Serializable {
 
     private Boolean archived;
 
-    private Boolean deleted; // ✅ Nuevo campo
-
-    public Boolean getArchived() {
-        return archived;
-    }
-
-    public void setArchived(Boolean archived) {
-        this.archived = archived;
-    }
-
-    public Boolean getDeleted() {
-        return deleted;
-    }
-
-    public void setDeleted(Boolean deleted) {
-        this.deleted = deleted;
-    }
+    private Boolean deleted;
 
     public Long getId() {
         return id;
@@ -80,11 +63,11 @@ public class TaskDTO implements Serializable {
         this.description = description;
     }
 
-    public TaskPriority getPriority() {
+    public PriorityDTO getPriority() {
         return priority;
     }
 
-    public void setPriority(TaskPriority priority) {
+    public void setPriority(PriorityDTO priority) {
         this.priority = priority;
     }
 
@@ -134,6 +117,22 @@ public class TaskDTO implements Serializable {
 
     public void setSubTaskIds(Set<Long> subTaskIds) {
         this.subTaskIds = subTaskIds;
+    }
+
+    public Boolean getArchived() {
+        return archived;
+    }
+
+    public void setArchived(Boolean archived) {
+        this.archived = archived;
+    }
+
+    public Boolean getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
     }
 
     @Override

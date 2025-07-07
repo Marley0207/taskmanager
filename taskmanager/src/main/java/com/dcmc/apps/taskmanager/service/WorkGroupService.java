@@ -181,6 +181,18 @@ public class WorkGroupService {
             .filter(w -> Boolean.FALSE.equals(w.getDeleted()))
             .orElseThrow(() -> new BadRequestAlertException("WorkGroup no encontrado o eliminado", "WorkGroup", "notfound"));
 
+        String currentLogin = SecurityUtils.getCurrentUserLogin()
+            .orElseThrow(() -> new AccessDeniedException("Usuario no autenticado"));
+
+        boolean isAdmin = groupSecurityService.isAdmin();
+
+        if (!isAdmin) {
+            boolean isMember = workGroupUserRoleRepository.existsByUser_LoginAndGroup_Id(currentLogin, groupId);
+            if (!isMember) {
+                throw new AccessDeniedException("No tienes permiso para ver los miembros de este grupo");
+            }
+        }
+
         return workGroupUserRoleRepository.findAllByGroup_Id(groupId).stream()
             .map(wgur -> new UserGroupRoleDTO(
                 userMapper.userToUserDTO(wgur.getUser()),
@@ -188,6 +200,7 @@ public class WorkGroupService {
             ))
             .collect(Collectors.toList());
     }
+
 
     @Transactional(readOnly = true)
     public List<WorkGroupDTO> findByCurrentUser() {

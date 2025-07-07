@@ -18,9 +18,18 @@ interface AddMemberModalProps {
   onMemberAdded: () => void;
   existingMembers: IWorkGroupMember[];
   currentUserRole?: 'OWNER' | 'MODERADOR' | 'MIEMBRO';
+  isAdmin?: boolean;
 }
 
-const AddMemberModal = ({ isOpen, onClose, workGroupId, onMemberAdded, existingMembers, currentUserRole }: AddMemberModalProps) => {
+const AddMemberModal = ({
+  isOpen,
+  onClose,
+  workGroupId,
+  onMemberAdded,
+  existingMembers,
+  currentUserRole,
+  isAdmin,
+}: AddMemberModalProps) => {
   const [availableUsers, setAvailableUsers] = useState<IUser[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);

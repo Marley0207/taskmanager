@@ -441,13 +441,7 @@ const TaskDetails = () => {
         className="task-details-content"
         style={{ background: 'white', borderRadius: 8, padding: 24, boxShadow: '0 2px 4px rgba(0,0,0,0.08)' }}
       >
-        <TaskInfo
-          task={task}
-          getPriorityIcon={getPriorityIcon}
-          getStatusIcon={getStatusIcon}
-          getPriorityText={getPriorityText}
-          getStatusText={getStatusText}
-        />
+        <TaskInfo task={task} />
 
         <TaskMembers
           assignedUsers={assignedUsers}

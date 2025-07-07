@@ -1,8 +1,10 @@
+import { IPriority } from '../priority/priority.model';
+
 export interface ITask {
   id?: number;
   title: string;
   description?: string;
-  priority: TaskPriority;
+  priority: IPriority;
   status: TaskStatus;
   project: {
     id: number;
@@ -67,7 +69,11 @@ export enum TaskStatus {
 export const defaultValue: Readonly<ITask> = {
   title: '',
   description: '',
-  priority: TaskPriority.NORMAL,
+  priority: {
+    id: 2, // ID de NORMAL en la base de datos
+    name: 'NORMAL',
+    hidden: false,
+  },
   status: TaskStatus.NOT_STARTED,
   project: {
     id: 0,

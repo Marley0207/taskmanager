@@ -1,6 +1,5 @@
 package com.dcmc.apps.taskmanager.domain;
 
-import com.dcmc.apps.taskmanager.domain.enumeration.TaskPriority;
 import com.dcmc.apps.taskmanager.domain.enumeration.TaskStatus;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
@@ -36,11 +35,6 @@ public class Task implements Serializable {
 
     @NotNull
     @Enumerated(EnumType.STRING)
-    @Column(name = "priority", nullable = false)
-    private TaskPriority priority;
-
-    @NotNull
-    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private TaskStatus status;
 
@@ -67,6 +61,11 @@ public class Task implements Serializable {
         inverseJoinColumns = @JoinColumn(name = "assigned_to_id")
     )
     private Set<User> assignedTos = new HashSet<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @NotNull
+    @JoinColumn(name = "priority_id")
+    private Priority priority;
 
     @ManyToOne(optional = false)
     @NotNull
@@ -130,19 +129,6 @@ public class Task implements Serializable {
 
     public void setDescription(String description) {
         this.description = description;
-    }
-
-    public TaskPriority getPriority() {
-        return this.priority;
-    }
-
-    public Task priority(TaskPriority priority) {
-        this.setPriority(priority);
-        return this;
-    }
-
-    public void setPriority(TaskPriority priority) {
-        this.priority = priority;
     }
 
     public TaskStatus getStatus() {
@@ -333,6 +319,12 @@ public class Task implements Serializable {
         this.deleted = deleted;
     }
 
+    public Priority getPriority() {
+        return priority;
+    }
+    public void setPriority(Priority priorityEntity) {
+        this.priority = priorityEntity;
+    }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
 

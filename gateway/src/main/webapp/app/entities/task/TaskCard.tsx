@@ -19,6 +19,7 @@ import { getAssignedUsers, getMembersOfArchivedTask, archiveTask } from './task.
 import { getWorkGroupMembers } from '../work-group/work-group.api';
 import { IWorkGroupMember } from '../work-group/work-group.model';
 import { useAppSelector } from 'app/config/store';
+import { getPriorityIcon, getPriorityText, getStatusIcon, getStatusText } from './utils/taskUtils';
 
 interface TaskCardProps {
   task: ITask;
@@ -95,58 +96,6 @@ const TaskCard: React.FC<TaskCardProps> = ({
     } catch (err) {
       console.error('TaskCard: Error loading current user role:', err);
       setCurrentUserRole(null);
-    }
-  };
-
-  const getPriorityIcon = (priority: TaskPriority) => {
-    switch (priority) {
-      case TaskPriority.HIGH:
-        return <FontAwesomeIcon icon={faExclamationTriangle} className="priority-high" />;
-      case TaskPriority.NORMAL:
-        return <FontAwesomeIcon icon={faFlag} className="priority-normal" />;
-      case TaskPriority.LOW:
-        return <FontAwesomeIcon icon={faFlag} className="priority-low" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusIcon = (status: TaskStatus) => {
-    switch (status) {
-      case TaskStatus.DONE:
-        return <FontAwesomeIcon icon={faCheckCircle} className="status-done" />;
-      case TaskStatus.WORKING_ON_IT:
-        return <FontAwesomeIcon icon={faClock} className="status-working" />;
-      case TaskStatus.NOT_STARTED:
-        return <FontAwesomeIcon icon={faClock} className="status-not-started" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusText = (status: TaskStatus) => {
-    switch (status) {
-      case TaskStatus.DONE:
-        return 'Completada';
-      case TaskStatus.WORKING_ON_IT:
-        return 'En Progreso';
-      case TaskStatus.NOT_STARTED:
-        return 'No Iniciada';
-      default:
-        return status;
-    }
-  };
-
-  const getPriorityText = (priority: TaskPriority) => {
-    switch (priority) {
-      case TaskPriority.HIGH:
-        return 'Alta';
-      case TaskPriority.NORMAL:
-        return 'Normal';
-      case TaskPriority.LOW:
-        return 'Baja';
-      default:
-        return priority;
     }
   };
 

@@ -1,8 +1,6 @@
 package com.dcmc.apps.taskmanager.service.mapper;
 
-import com.dcmc.apps.taskmanager.domain.Project;
-import com.dcmc.apps.taskmanager.domain.Task;
-import com.dcmc.apps.taskmanager.domain.WorkGroup;
+import com.dcmc.apps.taskmanager.domain.*;
 import com.dcmc.apps.taskmanager.service.dto.TaskDTO;
 import org.mapstruct.*;
 
@@ -10,22 +8,24 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@Mapper(componentModel = "spring", uses = {UserMapper.class, ProjectMapper.class})
+@Mapper(componentModel = "spring", uses = { UserMapper.class, ProjectMapper.class, PriorityMapper.class })
 public interface TaskMapper extends EntityMapper<TaskDTO, Task> {
 
     // De DTO a entidad
     @Mapping(target = "workGroup", source = "workGroupId")
-    @Mapping(target = "project", source = "project") // Usa fromId para convertir id a Project
+    @Mapping(target = "project", source = "project")
     @Mapping(target = "parentTask", source = "parentTaskId")
     @Mapping(target = "assignedTos", ignore = true)
+    @Mapping(target = "priority", source = "priority") // ✅ mapear PriorityDTO → Priority
     @Mapping(target = "archived", source = "archived")
     @Mapping(target = "deleted", source = "deleted")
     Task toEntity(TaskDTO taskDTO);
 
     // De entidad a DTO
     @Mapping(source = "workGroup.id", target = "workGroupId")
-    @Mapping(source = "project", target = "project") // Mapea el objeto completo
+    @Mapping(source = "project", target = "project")
     @Mapping(source = "parentTask.id", target = "parentTaskId")
+    @Mapping(source = "priority", target = "priority") // ✅ mapear Priority → PriorityDTO
     @Mapping(target = "subTaskIds", expression = "java(mapSubTaskIds(task))")
     @Mapping(source = "archived", target = "archived")
     @Mapping(source = "deleted", target = "deleted")
@@ -34,7 +34,6 @@ public interface TaskMapper extends EntityMapper<TaskDTO, Task> {
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void partialUpdate(@MappingTarget Task entity, TaskDTO dto);
 
-    // Convierte lista de subtareas en lista de IDs
     default Set<Long> mapSubTaskIds(Task task) {
         if (task.getSubTasks() == null) {
             return new HashSet<>();
@@ -42,7 +41,6 @@ public interface TaskMapper extends EntityMapper<TaskDTO, Task> {
         return task.getSubTasks().stream().map(Task::getId).collect(Collectors.toSet());
     }
 
-    // Utilidades para asignar objetos desde IDs
     default WorkGroup fromId(Long id) {
         if (id == null) return null;
         WorkGroup group = new WorkGroup();
@@ -64,8 +62,13 @@ public interface TaskMapper extends EntityMapper<TaskDTO, Task> {
         return task;
     }
 
+    default Priority fromIdPriority(Long id) {
+        if (id == null) return null;
+        Priority priority = new Priority();
+        priority.setId(id);
+        return priority;
+    }
 
-    // Lógica para establecer subtareas después del mapeo
     @AfterMapping
     default void handleSubTaskIds(@MappingTarget Task task, TaskDTO dto) {
         if (dto.getSubTaskIds() != null) {

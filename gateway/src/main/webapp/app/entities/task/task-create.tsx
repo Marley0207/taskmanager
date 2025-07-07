@@ -12,7 +12,7 @@ import { IPriority } from '../priority/priority.model';
 interface ITaskCreatePayload {
   title: string;
   description: string;
-  priority: TaskPriority;
+  priority: TaskPriority | string;
   status: TaskStatus;
   project: { id: number };
   workGroup: { id: number };
@@ -30,7 +30,7 @@ const TaskCreate = () => {
   const [form, setForm] = useState({
     title: '',
     description: '',
-    priority: TaskPriority.NORMAL,
+    priority: undefined,
     status: TaskStatus.NOT_STARTED,
   });
   const [workGroupId, setWorkGroupId] = useState<string | null>(workGroupIdFromUrl);
@@ -61,14 +61,26 @@ const TaskCreate = () => {
     // Cargar prioridades visibles
     getAllPriorities()
       .then(res => {
-        setPriorities(res.data.filter(p => !p.hidden));
+        const visibles = res.data.filter(p => !p.hidden);
+        setPriorities(visibles);
+        if (visibles.length > 0) {
+          setForm(prev => ({ ...prev, priority: visibles[0] }));
+        }
       })
       .catch(() => setPriorities([]));
   }, [projectId, workGroupIdFromUrl]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+    if (name === 'priority') {
+      // Buscar la prioridad seleccionada por id
+      const selectedPriority = priorities.find(p => String(p.id) === value);
+      if (selectedPriority) {
+        setForm(prev => ({ ...prev, priority: selectedPriority }));
+      }
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -106,9 +118,6 @@ const TaskCreate = () => {
       setSaving(false);
     }
   };
-
-  // Unir prioridades dinámicas y enum, sin duplicados
-  const mergedPriorities = Array.from(new Set([...priorities.map(p => p.name), ...Object.values(TaskPriority)]));
 
   if (loading) {
     return <div className="loading">Cargando datos del proyecto...</div>;
@@ -162,10 +171,10 @@ const TaskCreate = () => {
         </div>
         <div className="form-group" style={{ marginBottom: 16 }}>
           <label>Prioridad</label>
-          <select name="priority" className="form-control" value={form.priority} onChange={handleChange} required>
-            {Object.values(TaskPriority).map(priority => (
-              <option key={priority} value={priority}>
-                {priority.toUpperCase()}
+          <select name="priority" className="form-control" value={form.priority?.id ?? ''} onChange={handleChange} required>
+            {priorities.map(priority => (
+              <option key={priority.id} value={priority.id}>
+                {priority.name.toUpperCase()}
               </option>
             ))}
           </select>

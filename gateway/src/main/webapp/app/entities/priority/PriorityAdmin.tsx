@@ -71,8 +71,12 @@ const PriorityAdmin: React.FC = () => {
       await deletePriority(id);
       setMessage('Prioridad eliminada');
       loadPriorities();
-    } catch {
-      setMessage('Error al eliminar prioridad');
+    } catch (error: any) {
+      if (error?.response?.data?.errorKey === 'priorityInUse' || error?.response?.data?.message?.toLowerCase().includes('en uso')) {
+        setMessage('No se puede eliminar una prioridad que está en uso por tareas.');
+      } else {
+        setMessage('Error al eliminar prioridad');
+      }
     }
   };
 

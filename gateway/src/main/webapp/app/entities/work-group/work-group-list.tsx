@@ -122,8 +122,12 @@ const WorkGroupList = () => {
           <div className="empty-description">
             {isAdmin()
               ? 'No se encontraron grupos de trabajo para mostrar en este momento.'
-              : 'No perteneces a ningún grupo de trabajo. Contacta a un administrador para ser añadido a un grupo.'}
+              : 'No perteneces a ningún grupo de trabajo. Puedes crear uno nuevo o contactar a un administrador para ser añadido a un grupo.'}
           </div>
+          <button className="create-workgroup-btn" onClick={() => navigate('/work-groups/create')} style={{ marginTop: 24 }}>
+            <span className="btn-icon">👥</span>
+            <span className="btn-text">Crear Nuevo Grupo</span>
+          </button>
         </div>
       </div>
     );
